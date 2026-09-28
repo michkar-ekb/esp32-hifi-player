@@ -1,0 +1,4 @@
+# build output
+server/s3hifi
+server/s3hifi.exe
+firmware/**/build/

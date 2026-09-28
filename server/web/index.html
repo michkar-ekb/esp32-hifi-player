@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121214">
+<link rel="manifest" href="manifest.json">
+<title>S3 Hi-Fi</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #121214; --panel: #1b1b1f; --line: #2a2a30; --text: #ecebe8; --muted: #8f8d88;
+    --accent: #d4a95a; --accent-ink: #1a1408; --danger: #e0705a;
+    --tap: 48px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: env(safe-area-inset-top) 12px 0; }
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px 0; }
+  .tabs button { height: 44px; border-radius: 10px; color: var(--muted); font-weight: 600; }
+  .tabs button[aria-selected="true"] { background: var(--panel); color: var(--text); }
+
+  main { padding: 0 12px 160px; }
+  .crumb { display: flex; align-items: center; gap: 8px; min-height: 52px; }
+  .crumb h2 { margin: 0; font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .back { width: var(--tap); height: var(--tap); border-radius: 50%; font-size: 22px; background: var(--panel); flex: none; }
+  .folder-cover { width: 140px; aspect-ratio: 1; object-fit: cover; border-radius: 10px; margin: 4px 0 12px; display: block; }
+
+  .row { display: flex; align-items: center; gap: 10px; min-height: 58px; border-bottom: 1px solid var(--line); }
+  .row .ico { width: 28px; text-align: center; color: var(--muted); flex: none; }
+  .row .name { flex: 1; min-width: 0; padding: 8px 0; text-align: left; }
+  .row .name b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row .name small { color: var(--muted); }
+  .row.current .name b { color: var(--accent); }
+  .row .err { color: var(--danger); }
+  .act { width: var(--tap); height: var(--tap); border-radius: 50%; font-size: 20px; flex: none; color: var(--accent); }
+  .act.plain { color: var(--muted); }
+  .act:active { background: var(--panel); }
+  .empty { color: var(--muted); padding: 32px 4px; }
+  .bar { display: flex; justify-content: flex-end; padding: 10px 0; }
+  .btn { height: 44px; padding: 0 16px; border-radius: 10px; background: var(--panel); font-weight: 600; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+
+  form.add { display: grid; gap: 8px; padding: 16px 0; }
+  form.add input { height: 46px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text); padding: 0 12px; font: inherit; }
+
+  /* bottom panel */
+  .now { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--panel); border-top: 1px solid var(--line);
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; }
+  .now img, .pult .art { background: #26262b; object-fit: cover; }
+  .now img { width: 52px; height: 52px; border-radius: 8px; }
+  .now .t { min-width: 0; }
+  .now .t b, .now .t small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .now .t small { color: var(--muted); }
+  .now .ctl { display: flex; align-items: center; }
+  .now .ctl button { width: 44px; height: 44px; font-size: 20px; border-radius: 50%; }
+  .now .pultbtn { grid-column: 1 / -1; height: 40px; border-radius: 10px; background: #26262b; font-weight: 600; }
+  .prog { grid-column: 1 / -1; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .prog i { display: block; height: 100%; background: var(--accent); width: 0; }
+
+  /* remote */
+  .pult { position: fixed; inset: 0; z-index: 10; background: var(--bg); overflow: auto;
+    padding: calc(12px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom)); display: grid; gap: 14px; align-content: start; justify-items: center; }
+  .pult .top { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+  .pult .art { width: min(78vw, 360px); aspect-ratio: 1; border-radius: 14px; }
+  .pult h3 { margin: 0; font-size: 20px; text-align: center; text-wrap: balance; }
+  .pult .sub, .pult .fmt, .pult .status { color: var(--muted); text-align: center; font-size: 14px; }
+  .pult .fmt { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pult .seek { width: min(100%, 420px); display: grid; gap: 4px; }
+  .pult .times { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 32px; }
+  .keys { display: flex; gap: 6px; align-items: center; justify-content: center; }
+  .keys button { width: 56px; height: 56px; border-radius: 50%; font-size: 22px; background: var(--panel); }
+  .keys .big { width: 76px; height: 76px; font-size: 30px; background: var(--accent); color: var(--accent-ink); }
+  .vol { width: min(100%, 420px); display: grid; grid-template-columns: 48px 1fr 48px; gap: 8px; align-items: center; }
+  .vol button { height: 48px; border-radius: 50%; background: var(--panel); font-size: 22px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); margin-right: 6px; }
+  .dot.on { background: #6fd08c; }
+
+  .toast { position: fixed; left: 50%; bottom: 140px; transform: translateX(-50%); background: #2c2c33; padding: 10px 16px; border-radius: 10px; z-index: 20; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="folders" aria-selected="true">Папки</button>
+    <button role="tab" data-tab="queue">Очередь</button>
+    <button role="tab" data-tab="radio">Радио</button>
+  </nav>
+</header>
+
+<main id="view"></main>
+
+<section class="now" id="now" hidden>
+  <img id="nowArt" alt="">
+  <div class="t"><b id="nowTitle"></b><small id="nowSub"></small></div>
+  <div class="ctl">
+    <button id="bPrev" aria-label="Предыдущий">⏮</button>
+    <button id="bToggle" aria-label="Пауза">⏸</button>
+    <button id="bNext" aria-label="Следующий">⏭</button>
+    <button id="bStop" aria-label="Стоп">■</button>
+  </div>
+  <div class="prog"><i id="nowProg"></i></div>
+  <button class="pultbtn" id="openPult">Пульт</button>
+</section>
+
+<section class="pult" id="pult" hidden>
+  <div class="top">
+    <span class="status" id="pStatus"></span>
+    <button class="btn" id="closePult">Закрыть</button>
+  </div>
+  <img class="art" id="pArt" alt="">
+  <h3 id="pTitle"></h3>
+  <div class="sub" id="pSub"></div>
+  <div class="fmt" id="pFmt"></div>
+  <div class="seek" id="pSeekBox">
+    <input type="range" id="pSeek" min="0" max="100" step="1" value="0" aria-label="Перемотка">
+    <div class="times"><span id="pPos">0:00</span><span id="pDur">0:00</span></div>
+  </div>
+  <div class="keys">
+    <button data-cmd="prev" aria-label="Предыдущий">⏮</button>
+    <button data-cmd="skip" data-arg="-10" aria-label="Назад 10 секунд">⏪</button>
+    <button class="big" id="pToggle" aria-label="Пауза">⏸</button>
+    <button data-cmd="skip" data-arg="10" aria-label="Вперёд 10 секунд">⏩</button>
+    <button data-cmd="next" aria-label="Следующий">⏭</button>
+  </div>
+  <div class="keys"><button data-cmd="stop" aria-label="Стоп">■</button></div>
+  <div class="vol">
+    <button id="vDown" aria-label="Тише">−</button>
+    <input type="range" id="pVol" min="0" max="100" step="1" aria-label="Громкость">
+    <button id="vUp" aria-label="Громче">+</button>
+  </div>
+</section>
+
+<script>
+const $ = s => document.querySelector(s);
+const view = $("#view");
+let tab = "folders", path = "", st = null, seeking = false, volTimer = 0;
+
+const fmtT = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+async function api(url, body, method) {
+  const opt = body !== undefined ? { method: method || "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { method: method || "GET" };
+  const r = await fetch(url, opt);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(j.error || "Ошибка " + r.status); throw new Error(j.error); }
+  return j;
+}
+function toast(t) {
+  const d = document.createElement("div"); d.className = "toast"; d.textContent = t; document.body.append(d);
+  setTimeout(() => d.remove(), 1800);
+}
+const cmd = (c, a = 0) => api("/api/cmd", { cmd: c, arg: +a }).then(s => { st = s; paint(); }).catch(() => {});
+
+// ---------- tabs ----------
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+  render();
+});
+
+async function render() {
+  if (tab === "folders") return renderFolder();
+  if (tab === "queue") return renderQueue();
+  return renderRadio();
+}
+
+async function renderFolder() {
+  let ls;
+  try { ls = await api("/api/browse?path=" + encodeURIComponent(path)); } catch { path = ""; return; }
+  let h = `<div class="crumb">${ls.parent !== null ? `<button class="back" data-go="${esc(ls.parent)}" aria-label="Назад">‹</button>` : ""}<h2>${esc(ls.name)}</h2></div>`;
+  if (ls.cover) h += `<img class="folder-cover" src="${ls.cover}" alt="">`;
+  if (!ls.items.length) h += `<div class="empty">Здесь нет папок и музыки.</div>`;
+  for (const it of ls.items) {
+    h += `<div class="row">
+      <span class="ico">${it.dir ? "📁" : "♪"}</span>
+      <button class="name" ${it.dir ? `data-go="${esc(it.path)}"` : `data-play="${esc(it.path)}"`}><b>${esc(it.name)}</b>${it.dur ? `<small>${fmtT(it.dur)}</small>` : ""}</button>
+      <button class="act" data-play="${esc(it.path)}" aria-label="Играть сразу">▶</button>
+      <button class="act plain" data-add="${esc(it.path)}" aria-label="В очередь">＋</button>
+    </div>`;
+  }
+  view.innerHTML = h;
+}
+
+async function renderQueue() {
+  const s = st || await api("/api/state");
+  let h = `<div class="crumb"><h2>Очередь</h2></div>`;
+  if (!s.queue || !s.queue.length) { view.innerHTML = h + `<div class="empty">Очередь пуста. Нажмите ＋ у песни или папки.</div>`; return; }
+  h += `<div class="bar"><button class="btn" id="qClear">Очистить</button></div>`;
+  s.queue.forEach((it, i) => {
+    h += `<div class="row ${i === s.cur ? "current" : ""}">
+      <span class="ico">${i === s.cur ? "♪" : i + 1}</span>
+      <button class="name" data-jump="${i}"><b>${esc(it.title)}</b><small>${it.err ? `<span class="err">не играет: ${esc(it.err)}</span>` : it.kind === "radio" ? "радио" : fmtT(it.dur)}</small></button>
+      <button class="act plain" data-remove="${i}" aria-label="Убрать">✕</button>
+    </div>`;
+  });
+  view.innerHTML = h;
+  $("#qClear").onclick = () => cmd("clear").then(render);
+}
+
+async function renderRadio() {
+  const list = await api("/api/radios");
+  let h = `<div class="crumb"><h2>Радио</h2></div>`;
+  for (const r of list) {
+    h += `<div class="row"><span class="ico">📻</span>
+      <button class="name" data-radio="${r.id}"><b>${esc(r.name)}</b><small>${esc(r.url)}</small></button>
+      <button class="act" data-radio="${r.id}" aria-label="Играть">▶</button>
+      <button class="act plain" data-delradio="${r.id}" aria-label="Удалить">✕</button></div>`;
+  }
+  h += `<form class="add" id="radioForm">
+    <input id="rName" placeholder="Название" required>
+    <input id="rUrl" placeholder="Адрес потока MP3, http://…" inputmode="url" required>
+    <button class="btn primary">Добавить станцию</button></form>`;
+  view.innerHTML = h;
+  $("#radioForm").onsubmit = async e => {
+    e.preventDefault();
+    await api("/api/radios", { name: $("#rName").value.trim(), url: $("#rUrl").value.trim() });
+    renderRadio();
+  };
+}
+
+view.addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const d = b.dataset;
+  if (d.go !== undefined) { path = d.go; renderFolder(); window.scrollTo(0, 0); }
+  else if (d.play !== undefined) { await api("/api/queue", { path: d.play, now: true }); refresh(); }
+  else if (d.add !== undefined) { const r = await api("/api/queue", { path: d.add, now: false }); toast(`В очереди: +${r.added}, всего ${r.length}`); refresh(); }
+  else if (d.jump !== undefined) { await cmd("jump", d.jump); render(); }
+  else if (d.remove !== undefined) { await cmd("remove", d.remove); render(); }
+  else if (d.radio !== undefined) { await api("/api/queue", { radio: +d.radio, now: true }); refresh(); }
+  else if (d.delradio !== undefined) { await api("/api/radios?id=" + d.delradio, undefined, "DELETE"); renderRadio(); }
+});
+
+// ---------- panel and remote ----------
+$("#bPrev").onclick = () => cmd("prev");
+$("#bNext").onclick = () => cmd("next");
+$("#bStop").onclick = () => cmd("stop");
+$("#bToggle").onclick = $("#pToggle").onclick = () => cmd("toggle");
+$("#openPult").onclick = () => { $("#pult").hidden = false; paint(); };
+$("#closePult").onclick = () => { $("#pult").hidden = true; };
+document.querySelectorAll("#pult [data-cmd]").forEach(b => b.onclick = () => cmd(b.dataset.cmd, b.dataset.arg || 0));
+const seek = $("#pSeek");
+seek.oninput = () => { seeking = true; $("#pPos").textContent = fmtT(seek.value); };
+seek.onchange = () => { cmd("seek", seek.value).finally(() => seeking = false); };
+const vol = $("#pVol");
+const setVol = v => { vol.value = v; clearTimeout(volTimer); volTimer = setTimeout(() => cmd("volume", v), 120); };
+vol.oninput = () => setVol(vol.value);
+$("#vDown").onclick = () => setVol(Math.max(0, +vol.value - 5));
+$("#vUp").onclick = () => setVol(Math.min(100, +vol.value + 5));
+
+function paint() {
+  const s = st; if (!s) return;
+  const active = s.cur >= 0 && s.queue && s.queue.length;
+  $("#now").hidden = !active;
+  if (!active) return;
+  const icon = s.state === "play" ? "⏸" : "▶";
+  $("#bToggle").textContent = $("#pToggle").textContent = icon;
+  const art = s.cover || "";
+  for (const img of [$("#nowArt"), $("#pArt")]) {
+    if (img.dataset.src !== art) { img.dataset.src = art; if (art) img.src = art; else img.removeAttribute("src"); }
+  }
+  $("#nowTitle").textContent = $("#pTitle").textContent = s.title || "—";
+  $("#nowSub").textContent = $("#pSub").textContent = s.sub || "";
+  $("#nowProg").style.width = s.dur ? Math.min(100, s.pos / s.dur * 100) + "%" : "0";
+  $("#pFmt").textContent = s.format || "";
+  $("#pSeekBox").hidden = !s.dur;
+  if (!seeking) { seek.max = Math.floor(s.dur || 0); seek.value = Math.floor(s.pos); $("#pPos").textContent = fmtT(s.pos); }
+  $("#pDur").textContent = fmtT(s.dur);
+  if (document.activeElement !== vol) vol.value = s.volume;
+  const rx = s.kbps ? ` · приём ${(s.kbps / 1000).toFixed(1)} Мбит/с` : "";
+  const buf = s.bufferMs ? ` · буфер ${(s.bufferMs / 1000).toFixed(1)} с${rx} · Wi-Fi ${s.rssi} dBm` : "";
+  $("#pStatus").innerHTML = `<span class="dot ${s.online ? "on" : ""}"></span>${s.online ? "Плеер на связи" + buf : "Плеер не на связи"}`;
+}
+
+async function refresh() {
+  try { st = await api("/api/state"); } catch { return; }
+  paint();
+  if (tab === "queue") renderQueue();
+}
+setInterval(() => { if (!document.hidden) refresh(); }, 1000);
+render(); refresh();
+</script>
+</body>
+</html>

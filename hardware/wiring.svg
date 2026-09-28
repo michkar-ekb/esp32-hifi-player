@@ -1,0 +1,240 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1540" height="1075" viewBox="0 0 1540 1075">
+<rect width="1540" height="1075" fill="#d9d9d9"/>
+<text x="20" y="40" font-size="26" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">S3 Hi-Fi — wiring diagram</text>
+<rect x="560" y="185" width="300" height="524" rx="0" fill="none" stroke="#111" stroke-width="4"/>
+<rect x="675" y="163" width="70" height="34" rx="0" fill="#d9d9d9" stroke="#111" stroke-width="3"/>
+<text x="710" y="189" font-size="18" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">USB</text>
+<text x="752" y="181" font-size="13" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">USB-C: flashing, rear panel</text>
+<line x1="530" y1="217" x2="560" y2="217" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="213" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">1</text>
+<text x="566" y="222" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">3V3</text>
+<line x1="530" y1="239" x2="560" y2="239" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="235" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">2</text>
+<text x="566" y="244" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">3V3</text>
+<line x1="530" y1="261" x2="560" y2="261" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="257" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">3</text>
+<text x="566" y="266" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">RST</text>
+<line x1="530" y1="283" x2="560" y2="283" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="279" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">4</text>
+<text x="566" y="288" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO4</text>
+<line x1="530" y1="305" x2="560" y2="305" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="301" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">5</text>
+<text x="566" y="310" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO5</text>
+<line x1="530" y1="327" x2="560" y2="327" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="323" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">6</text>
+<text x="566" y="332" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO6</text>
+<line x1="530" y1="349" x2="560" y2="349" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="345" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">7</text>
+<text x="566" y="354" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO7</text>
+<line x1="530" y1="371" x2="560" y2="371" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="367" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">8</text>
+<text x="566" y="376" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO15</text>
+<line x1="530" y1="393" x2="560" y2="393" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="389" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">9</text>
+<text x="566" y="398" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO16</text>
+<line x1="530" y1="415" x2="560" y2="415" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="411" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">10</text>
+<text x="566" y="420" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO17</text>
+<line x1="530" y1="437" x2="560" y2="437" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="433" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">11</text>
+<text x="566" y="442" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO18</text>
+<line x1="530" y1="459" x2="560" y2="459" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="455" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">12</text>
+<text x="566" y="464" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO8</text>
+<line x1="530" y1="481" x2="560" y2="481" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="477" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">13</text>
+<text x="566" y="486" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">*GPIO3</text>
+<line x1="530" y1="503" x2="560" y2="503" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="499" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">14</text>
+<text x="566" y="508" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">*GPIO46</text>
+<line x1="530" y1="525" x2="560" y2="525" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="521" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">15</text>
+<text x="566" y="530" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO9</text>
+<line x1="530" y1="547" x2="560" y2="547" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="543" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">16</text>
+<text x="566" y="552" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO10</text>
+<line x1="530" y1="569" x2="560" y2="569" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="565" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">17</text>
+<text x="566" y="574" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO11</text>
+<line x1="530" y1="591" x2="560" y2="591" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="587" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">18</text>
+<text x="566" y="596" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO12</text>
+<line x1="530" y1="613" x2="560" y2="613" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="609" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">19</text>
+<text x="566" y="618" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO13</text>
+<line x1="530" y1="635" x2="560" y2="635" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="631" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">20</text>
+<text x="566" y="640" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO14</text>
+<line x1="530" y1="657" x2="560" y2="657" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="653" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">21</text>
+<text x="566" y="662" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">5V</text>
+<line x1="530" y1="679" x2="560" y2="679" stroke="#8b1a1a" stroke-width="2"/>
+<text x="545" y="675" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">22</text>
+<text x="566" y="684" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<line x1="860" y1="217" x2="890" y2="217" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="213" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">1</text>
+<text x="854" y="222" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<line x1="860" y1="239" x2="890" y2="239" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="235" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">2</text>
+<text x="854" y="244" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">TX / 43</text>
+<line x1="860" y1="261" x2="890" y2="261" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="257" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">3</text>
+<text x="854" y="266" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">RX / 44</text>
+<line x1="860" y1="283" x2="890" y2="283" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="279" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">4</text>
+<text x="854" y="288" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO1</text>
+<line x1="860" y1="305" x2="890" y2="305" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="301" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">5</text>
+<text x="854" y="310" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO2</text>
+<line x1="860" y1="327" x2="890" y2="327" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="323" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">6</text>
+<text x="854" y="332" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO42</text>
+<line x1="860" y1="349" x2="890" y2="349" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="345" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">7</text>
+<text x="854" y="354" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO41</text>
+<line x1="860" y1="371" x2="890" y2="371" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="367" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">8</text>
+<text x="854" y="376" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO40</text>
+<line x1="860" y1="393" x2="890" y2="393" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="389" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">9</text>
+<text x="854" y="398" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO39</text>
+<line x1="860" y1="415" x2="890" y2="415" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="411" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">10</text>
+<text x="854" y="420" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO38</text>
+<line x1="860" y1="437" x2="890" y2="437" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="433" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">11</text>
+<text x="854" y="442" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">!GPIO37</text>
+<line x1="860" y1="459" x2="890" y2="459" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="455" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">12</text>
+<text x="854" y="464" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">!GPIO36</text>
+<line x1="860" y1="481" x2="890" y2="481" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="477" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">13</text>
+<text x="854" y="486" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">!GPIO35</text>
+<line x1="860" y1="503" x2="890" y2="503" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="499" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">14</text>
+<text x="854" y="508" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">*GPIO0</text>
+<line x1="860" y1="525" x2="890" y2="525" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="521" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">15</text>
+<text x="854" y="530" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">*GPIO45</text>
+<line x1="860" y1="547" x2="890" y2="547" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="543" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">16</text>
+<text x="854" y="552" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO48</text>
+<line x1="860" y1="569" x2="890" y2="569" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="565" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">17</text>
+<text x="854" y="574" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO47</text>
+<line x1="860" y1="591" x2="890" y2="591" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="587" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">18</text>
+<text x="854" y="596" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO21</text>
+<line x1="860" y1="613" x2="890" y2="613" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="609" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">19</text>
+<text x="854" y="618" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO20</text>
+<line x1="860" y1="635" x2="890" y2="635" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="631" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">20</text>
+<text x="854" y="640" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GPIO19</text>
+<line x1="860" y1="657" x2="890" y2="657" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="653" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">21</text>
+<text x="854" y="662" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<line x1="860" y1="679" x2="890" y2="679" stroke="#8b1a1a" stroke-width="2"/>
+<text x="875" y="675" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">22</text>
+<text x="854" y="684" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<text x="710" y="437" font-size="22" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(-90 710 437)">ESP32-S3-DevKitC-1</text>
+<text x="738" y="437" font-size="18" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(-90 738 437)">N16R8</text>
+<rect x="495" y="105" width="455" height="675" rx="0" fill="none" stroke="#444" stroke-width="2" stroke-dasharray="10 6"/>
+<text x="503" y="125" font-size="16" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">ESP32-S3 terminal board</text>
+<text x="503" y="143" font-size="12" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">(DevKit plugs into 2×22 sockets)</text>
+<polyline points="530,657 510,657 510,725 610,725 610,780" fill="none" stroke="#d11" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="530,679 522,679 522,705 660,705 660,780" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="890,327 898,327 898,695 710,695 710,780" fill="none" stroke="#1540e0" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="890,305 910,305 910,710 760,710 760,780" fill="none" stroke="#e0b000" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="890,283 922,283 922,725 810,725 810,780" fill="none" stroke="#1a8a1a" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="890,217 934,217 934,740 860,740 860,780" fill="none" stroke="#777" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="860,780 860,880 1050,880" fill="none" stroke="#777" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="810,780 810,905 1050,905" fill="none" stroke="#1a8a1a" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="760,780 760,930 1050,930" fill="none" stroke="#e0b000" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="710,780 710,955 1050,955" fill="none" stroke="#1540e0" stroke-width="3" stroke-linejoin="round"/>
+<rect x="1080" y="790" width="340" height="225" rx="0" fill="none" stroke="#111" stroke-width="4"/>
+<text x="1270.0" y="862" font-size="20" fill="#1f3fbf" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">ES9038Q2M DAC board</text>
+<text x="1270.0" y="882" font-size="13" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">I2S input, own clock (no MCLK)</text>
+<line x1="1050" y1="880" x2="1080" y2="880" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1065" y="876" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">1</text>
+<text x="1086" y="885" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<line x1="1050" y1="905" x2="1080" y2="905" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1065" y="901" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">2</text>
+<text x="1086" y="910" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">BCLK</text>
+<line x1="1050" y1="930" x2="1080" y2="930" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1065" y="926" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">3</text>
+<text x="1086" y="935" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">FSCLK (LRCK)</text>
+<line x1="1050" y1="955" x2="1080" y2="955" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1065" y="951" font-size="13" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">4</text>
+<text x="1086" y="960" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">DATA</text>
+<line x1="1160" y1="760" x2="1160" y2="790" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1160" y="810" font-size="14" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">+12V</text>
+<line x1="1240" y1="760" x2="1240" y2="790" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1240" y="810" font-size="14" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<text x="1200" y="830" font-size="13" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">DC in</text>
+<line x1="1420" y1="920" x2="1450" y2="920" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1414" y="925" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">L OUT</text>
+<polyline points="1450,920 1472,920" fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="1488" cy="920" r="16" fill="#fff" stroke="#111" stroke-width="3"/>
+<circle cx="1488" cy="920" r="5" fill="#111"/>
+<text x="1488" y="956" font-size="13" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">RCA L</text>
+<line x1="1420" y1="975" x2="1450" y2="975" stroke="#8b1a1a" stroke-width="2"/>
+<text x="1414" y="980" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">R OUT</text>
+<polyline points="1450,975 1472,975" fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="1488" cy="975" r="16" fill="#fff" stroke="#111" stroke-width="3"/>
+<circle cx="1488" cy="975" r="5" fill="#111"/>
+<text x="1488" y="1011" font-size="13" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">RCA R</text>
+<text x="1488" y="1040" font-size="12" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">rear panel</text>
+<rect x="1110" y="560" width="180" height="70" rx="8" fill="#fff" stroke="#111" stroke-width="3"/>
+<text x="1200" y="588" font-size="15" fill="#111" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">DC jack 12 V / 2 A</text>
+<text x="1200" y="610" font-size="12" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">rear panel</text>
+<polyline points="1160,630 1160,760" fill="none" stroke="#d11" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="1240,630 1240,760" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+<text x="1150" y="652" font-size="18" fill="#d11" text-anchor="end" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">+</text>
+<text x="1252" y="652" font-size="18" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">−</text>
+<circle cx="1160" cy="735" r="5" fill="#c00"/>
+<circle cx="1240" cy="745" r="5" fill="#111"/>
+<polyline points="1160,735 1015,735 1015,70 430,70 430,235 400,235" fill="none" stroke="#d11" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="1240,745 1000,745 1000,88 445,88 445,275 400,275" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+<text x="1255" y="740" font-size="12" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">star point:</text>
+<text x="1255" y="755" font-size="12" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">at the DAC DC input</text>
+<rect x="140" y="190" width="260" height="140" rx="0" fill="#eef" stroke="#111" stroke-width="4"/>
+<text x="270.0" y="245" font-size="20" fill="#1f3fbf" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">DC-DC buck</text>
+<text x="270.0" y="270" font-size="15" fill="#111" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">12 V → 5 V, ≥1 A</text>
+<text x="394" y="240" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">IN+</text>
+<text x="394" y="280" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">IN−</text>
+<text x="220" y="322" font-size="14" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">OUT−</text>
+<text x="300" y="322" font-size="14" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">OUT+</text>
+<polyline points="300,330 300,850 610,850 610,780" fill="none" stroke="#d11" stroke-width="3" stroke-linejoin="round"/>
+<polyline points="220,330 220,870 660,870 660,780" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round"/>
+<text x="305" y="845" font-size="13" fill="#d11" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">5 V</text>
+<text x="225" y="865" font-size="13" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<circle cx="610" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="610" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="619" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 619 796)">5V</text>
+<circle cx="660" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="660" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="669" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 669 796)">GND</text>
+<circle cx="710" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="710" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="719" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 719 796)">DATA</text>
+<circle cx="760" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="760" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="769" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 769 796)">LRCK</text>
+<circle cx="810" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="810" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="819" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 819 796)">BCLK</text>
+<circle cx="860" cy="780" r="10" fill="#e8c16a" stroke="#6b4a00" stroke-width="2"/>
+<circle cx="860" cy="780" r="3.5" fill="#d9d9d9"/>
+<text x="869" y="796" font-size="12" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif" transform="rotate(60 869 796)">GND_A</text>
+<text x="942" y="768" font-size="12" fill="#111" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">wire pads</text>
+<text x="1060" y="190" font-size="20" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans Mono, Consolas, monospace">#define I2S_BCLK   1</text>
+<text x="1060" y="220" font-size="20" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans Mono, Consolas, monospace">#define I2S_LRCK   2</text>
+<text x="1060" y="250" font-size="20" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans Mono, Consolas, monospace">#define I2S_DOUT  42</text>
+<text x="1060" y="290" font-size="13" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">planned firmware pins</text>
+<text x="20" y="920" font-size="14" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">* strapping pin — keep free</text>
+<text x="20" y="941" font-size="14" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">! used by octal PSRAM (N16R8) — do not use</text>
+<text x="20" y="962" font-size="14" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">Grey wire = audio ground (GND_A), separate from power ground on the board</text>
+<text x="20" y="983" font-size="14" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">⚠ Keep the IN-OUT solder jumper OPEN: it bypasses the diode between USB VBUS and 5V.</text>
+<text x="20" y="1004" font-size="14" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">   Bridged, the 5 V from the buck converter would reach the PC over USB.</text>
+</svg>

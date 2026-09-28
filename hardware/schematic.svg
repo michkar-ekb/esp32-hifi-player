@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 770" font-family="'JetBrains Mono',Consolas,'DejaVu Sans Mono',monospace">
+<style>
+  :root{--bg:#ffffff;--grid:#e6ebf1;--ink:#1b2430;--muted:#5d6b7c;--fill:#f1f5fa;
+        --pwr:#c2410c;--i2s:#1f5fbf;--aud:#15803d;--net:#7c3aed;--opt:#8a96a6}
+  @media (prefers-color-scheme: dark){
+    :root{--bg:#0d1117;--grid:#1a212b;--ink:#e2e8f0;--muted:#94a3b8;--fill:#161d27;
+          --pwr:#fb923c;--i2s:#6ea8ff;--aud:#4ade80;--net:#b794f6;--opt:#6b7788}
+  }
+  .bg{fill:var(--bg)} .gl{stroke:var(--grid);stroke-width:1;fill:none}
+  text{fill:var(--ink);font-size:13px}
+  .t{font-family:'Golos Text','Segoe UI',Arial,sans-serif;font-weight:700;font-size:16px}
+  .h{font-family:'Golos Text','Segoe UI',Arial,sans-serif;font-weight:700;font-size:22px}
+  .s{fill:var(--muted);font-size:12px}
+  .box{fill:var(--fill);stroke:var(--ink);stroke-width:2}
+  .pwr{stroke:var(--pwr);stroke-width:3;fill:none}
+  .i2s{stroke:var(--i2s);stroke-width:2.5;fill:none}
+  .aud{stroke:var(--aud);stroke-width:2.5;fill:none}
+  .net{stroke:var(--net);stroke-width:2.2;fill:none;stroke-dasharray:8 5}
+  .opt{stroke:var(--opt);stroke-width:2;fill:none;stroke-dasharray:5 4}
+  .frame{fill:none;stroke:var(--ink);stroke-width:1.6;stroke-dasharray:10 6;opacity:.75}
+  .optb{fill:var(--bg);stroke:var(--opt);stroke-width:2;stroke-dasharray:5 4}
+  .lp{fill:var(--pwr);font-weight:600} .li{fill:var(--i2s);font-weight:600}
+  .la{fill:var(--aud);font-weight:600} .ln{fill:var(--net);font-weight:600}
+  .pad{fill:var(--bg);stroke:var(--ink);stroke-width:2}
+  .dotp{fill:var(--pwr)} .doti{fill:var(--i2s)} .dota{fill:var(--aud)}
+</style>
+<defs>
+  <pattern id="g" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" class="gl"/></pattern>
+  <g id="gnd"><path d="M0 0V8M-11 8H11M-6.5 14H6.5M-2 20H2" stroke="var(--ink)" stroke-width="2" fill="none"/></g>
+</defs>
+<rect class="bg" width="1240" height="770"/>
+<rect width="1240" height="770" fill="url(#g)"/>
+
+<text class="h" x="40" y="44">S3 Hi-Fi · wiring diagram</text>
+<text class="s" x="40" y="66">network Hi-Fi player: ESP32-S3 receives a ready PCM stream and feeds the DAC over I2S</text>
+
+<!-- ===== Power supply ===== -->
+<rect class="box" x="40" y="100" width="170" height="90" rx="4"/>
+<text class="t" x="54" y="126">Power supply</text>
+<text x="54" y="148">12 V · 2 A</text>
+<text class="s" x="54" y="168">mains adapter</text>
+
+<!-- 12 V to the DAC connector -->
+<path class="pwr" d="M210 140H880V300"/>
+<text class="lp" x="300" y="130">+12 V / GND (pair)</text>
+<circle class="dotp" cx="880" cy="250" r="6"/>
+<text class="lp" x="892" y="236">star point:</text>
+<text class="s" x="892" y="252">split right at</text>
+<text class="s" x="892" y="267">the DAC jack</text>
+
+<!-- branch to the buck converter -->
+<path class="pwr" d="M880 250H790"/>
+<rect class="box" x="650" y="214" width="140" height="74" rx="4"/>
+<text class="t" x="664" y="236">DC-DC</text>
+<text class="s" x="664" y="256">step-down module</text>
+<text x="664" y="276">12 → 5 V</text>
+
+<!-- 5 V and GND to the terminal board pads -->
+<path class="pwr" d="M650 240H630V330H600"/>
+<path class="pwr" d="M650 264H640V356H600"/>
+
+<!-- ===== Player enclosure ===== -->
+<rect class="frame" x="312" y="182" width="700" height="392" rx="10"/>
+<text class="t" x="330" y="210">PLAYER</text>
+<text class="s" x="330" y="228">everything inside the case</text>
+
+<!-- ===== ESP32-S3 on the terminal board ===== -->
+<rect class="box" x="330" y="300" width="270" height="252" rx="4"/>
+<text class="t" x="346" y="328">ESP32-S3</text>
+<text x="346" y="348">DevKitC-1 · N16R8</text>
+<text class="s" x="346" y="368">on the terminal board</text>
+<text class="s" x="346" y="392">3–5 s buffer in PSRAM,</text>
+<text class="s" x="346" y="408">it clocks the I2S itself</text>
+<text x="346" y="438" font-size="12">devkit pins:</text>
+<text class="s" x="346" y="456">5V     ← 5V</text>
+<text class="s" x="346" y="472">GND    ← GND</text>
+<text class="s" x="346" y="488">GPIO42 → DATA</text>
+<text class="s" x="346" y="504">GPIO2  → LRCK</text>
+<text class="s" x="346" y="520">GPIO1  → BCLK</text>
+<text class="s" x="346" y="536">GND    → GND_A</text>
+<!-- pads -->
+<g>
+  <circle class="pad" cx="600" cy="330" r="7"/><text class="s" x="584" y="334" text-anchor="end">5V</text>
+  <circle class="pad" cx="600" cy="356" r="7"/><text class="s" x="584" y="360" text-anchor="end">GND</text>
+  <circle class="pad" cx="600" cy="400" r="7"/><text class="s" x="584" y="404" text-anchor="end">DATA</text>
+  <circle class="pad" cx="600" cy="426" r="7"/><text class="s" x="584" y="430" text-anchor="end">LRCK</text>
+  <circle class="pad" cx="600" cy="452" r="7"/><text class="s" x="584" y="456" text-anchor="end">BCLK</text>
+  <circle class="pad" cx="600" cy="478" r="7"/><text class="s" x="584" y="482" text-anchor="end">GND_A</text>
+</g>
+
+<!-- ===== I2S ===== -->
+<path class="i2s" d="M607 400H760M607 426H760M607 452H760"/>
+<path class="i2s" d="M607 478H760" stroke-dasharray="2 0"/>
+<text class="li" x="640" y="392">I2S: 3 signals + ground</text>
+<text class="s" x="618" y="505">keep wires short</text>
+
+<!-- ===== DAC ===== -->
+<rect class="box" x="760" y="300" width="230" height="220" rx="4"/>
+<text class="t" x="846" y="328">DAC</text>
+<text x="846" y="348">ES9038Q2M</text>
+<text class="s" x="846" y="368">Rod Rain Audio</text>
+<text class="s" x="846" y="400">2 × NE5532</text>
+<text class="s" x="846" y="416">output buffer</text>
+<text class="s" x="846" y="448">own oscillator,</text>
+<text class="s" x="846" y="464">no MCLK needed</text>
+<!-- DAC pin header -->
+<g>
+  <rect class="pad" x="754" y="394" width="12" height="12"/><text class="s" x="774" y="404">DATA</text>
+  <rect class="pad" x="754" y="420" width="12" height="12"/><text class="s" x="774" y="430">FSCLK</text>
+  <rect class="pad" x="754" y="446" width="12" height="12"/><text class="s" x="774" y="456">BCLK</text>
+  <rect class="pad" x="754" y="472" width="12" height="12"/><text class="s" x="774" y="482">GND</text>
+</g>
+<text class="s" x="766" y="540">FSCLK on the DAC = LRCK</text>
+<!-- DC input -->
+<rect class="pad" x="872" y="292" width="16" height="12"/>
+
+<!-- ===== Audio output ===== -->
+<path class="aud" d="M990 360H1070"/>
+<path class="aud" d="M990 400H1070"/>
+<circle class="dota" cx="990" cy="360" r="5"/><circle class="dota" cx="990" cy="400" r="5"/>
+<text class="la" x="998" y="350">L</text><text class="la" x="998" y="392">R</text>
+<text class="la" x="1052" y="448">RCA ~2 V</text>
+
+<!-- divider (optional) -->
+<rect class="optb" x="1026" y="436" width="16" height="36"/>
+<path class="opt" d="M1034 400V436"/>
+<path class="opt" d="M1034 472V482"/>
+<use href="#gnd" x="1034" y="482"/>
+<text class="s" x="1024" y="524">optional divider:</text>
+<text class="s" x="1024" y="540">if the amplifier</text>
+<text class="s" x="1024" y="556">input overloads</text>
+
+<!-- ===== Center ===== -->
+<rect class="box" x="1070" y="330" width="150" height="96" rx="4"/>
+<text class="t" x="1082" y="356">Line out</text>
+<text class="s" x="1082" y="380">to an amplifier or</text>
+<text class="s" x="1082" y="396">powered speakers</text>
+
+<!-- ===== Network ===== -->
+<rect class="box" x="330" y="640" width="270" height="96" rx="4"/>
+<text class="t" x="346" y="666">Streaming server</text>
+<text class="s" x="346" y="686">home PC or mini PC:</text>
+<text class="s" x="346" y="702">FLAC library → PCM, queue,</text>
+<text class="s" x="346" y="718">radio, cover art, web remote</text>
+
+<rect class="box" x="40" y="650" width="180" height="76" rx="4"/>
+<text class="t" x="54" y="676">Phone</text>
+<text class="s" x="54" y="696">remote in the browser:</text>
+<text class="s" x="54" y="712">Folders · Queue · Radio</text>
+
+<path class="net" d="M220 688H330"/>
+<text class="ln" x="232" y="678">web</text>
+<path class="net" d="M465 640V552"/>
+<text class="ln" x="476" y="598">Wi-Fi: ready PCM stream</text>
+<text class="s" x="476" y="614">over TCP, up to 24-bit / 96 kHz</text>
+
+<!-- ===== Legend ===== -->
+<g transform="translate(700,660)">
+  <path class="pwr" d="M0 0H34"/><text class="s" x="44" y="4">power</text>
+  <path class="i2s" d="M0 24H34"/><text class="s" x="44" y="28">I2S digital</text>
+  <path class="aud" d="M150 0H184"/><text class="s" x="194" y="4">analog audio</text>
+  <path class="net" d="M150 24H184"/><text class="s" x="194" y="28">network</text>
+  <path class="opt" d="M150 48H184"/><text class="s" x="194" y="52">optional</text>
+</g>
+</svg>

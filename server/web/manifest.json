@@ -1,0 +1,8 @@
+{
+  "name": "S3 Hi-Fi",
+  "short_name": "S3 Hi-Fi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#121214"
+}
