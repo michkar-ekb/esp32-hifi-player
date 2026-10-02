@@ -11,7 +11,7 @@ to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
 <p>
   <img src="photos/player_case.jpg" width="49%" alt="Player in its case on the stereo">
-  <img src="photos/player_open.jpg" width="49%" alt="Inside: DAC, DC-DC module and the ESP32-S3 terminal board">
+  <img src="photos/player_inside.jpg" width="49%" alt="Inside: DAC, DC-DC module and the ESP32-S3 terminal board">
 </p>
 
 The bench build: in the case on the stereo, and inside.

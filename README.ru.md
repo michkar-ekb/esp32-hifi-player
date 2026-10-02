@@ -11,7 +11,7 @@
 
 <p>
   <img src="photos/player_case.jpg" width="49%" alt="Плеер в корпусе на музыкальном центре">
-  <img src="photos/player_open.jpg" width="49%" alt="Внутри: ЦАП, DC-DC модуль и терминальная плата ESP32-S3">
+  <img src="photos/player_inside.jpg" width="49%" alt="Внутри: ЦАП, DC-DC модуль и терминальная плата ESP32-S3">
 </p>
 
 Первая сборка: в корпусе на музыкальном центре и внутри.
