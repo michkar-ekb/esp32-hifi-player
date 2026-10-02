@@ -13,6 +13,9 @@ everything to PCM and streams it to the player. The web remote for the phone is 
   because the DAC board's I2S header cannot carry native DSD.
 - **Bit-perfect** for PCM files: the stream is identical to what ffmpeg decodes;
   seeking is sample-accurate and track changes are gapless.
+- **CUE sheets:** an album ripped as one big file (APE / FLAC / WAV) plus a `.cue` is shown as separate
+  songs; each plays from its start to the next one, gapless. Windows-1251 cue files (common in Russian
+  rips) are read correctly, and a cue that says `album.wav` next to `album.ape` still finds the file.
 - **Network shares are fine:** files are read 32 MB ahead in the background, so a share that
   stalls for a few seconds is not heard.
 - **One binary, no dependencies.** Builds for Windows and Linux (x86-64 and ARM).

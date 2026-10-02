@@ -14,12 +14,14 @@ import (
 
 // Item is one entry of the play queue.
 type Item struct {
-	Kind  string  `json:"kind"`           // "file" | "radio"
-	Path  string  `json:"path,omitempty"` // relative to the music root
-	URL   string  `json:"url,omitempty"`  // radio stream
-	Title string  `json:"title"`          // shown in the UI
-	Dur   float64 `json:"dur,omitempty"`  // seconds, 0 = unknown
-	Err   string  `json:"err,omitempty"`  // why it could not be played
+	Kind  string  `json:"kind"`            // "file" | "radio"
+	Path  string  `json:"path,omitempty"`  // relative to the music root
+	URL   string  `json:"url,omitempty"`   // radio stream
+	Title string  `json:"title"`           // shown in the UI
+	Dur   float64 `json:"dur,omitempty"`   // seconds, 0 = unknown
+	Start float64 `json:"start,omitempty"` // CUE song: where it starts in the album file
+	End   float64 `json:"end,omitempty"`   // CUE song: where it ends (0 = end of file)
+	Err   string  `json:"err,omitempty"`   // why it could not be played
 }
 
 // segment marks where a queue item starts inside the PCM stream of the current epoch.
@@ -519,11 +521,15 @@ func (p *Player) openNextLocked() bool {
 				src, err = openFile(full)
 			}
 		}
-		if err == nil && p.srcOffset > 0 {
-			if e := src.Seek(p.srcOffset); e != nil {
+		if err == nil && it.Start+p.srcOffset > 0 {
+			if e := src.Seek(it.Start + p.srcOffset); e != nil {
 				log.Printf("seek: %v", e)
 				p.srcOffset = 0
 			}
+		}
+		if err == nil && it.End > 0 { // a CUE song: stop where the next one begins
+			left := (it.End - it.Start - p.srcOffset) * float64(src.Format().Rate)
+			src = &clipSource{Source: src, left: int64(left)}
 		}
 		p.mu.Lock()
 		if p.epoch != epoch {
@@ -546,7 +552,7 @@ func (p *Player) openNextLocked() bool {
 			continue
 		}
 		p.Queue[p.srcIdx].Err = ""
-		if d := src.Duration(); d > 0 {
+		if d := src.Duration(); d > 0 && it.Start == 0 && it.End == 0 {
 			p.Queue[p.srcIdx].Dur = d
 		}
 		p.src = src

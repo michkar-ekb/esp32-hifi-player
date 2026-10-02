@@ -6,6 +6,7 @@ require (
 	github.com/hajimehoshi/go-mp3 v0.3.4
 	github.com/mewkiz/flac v1.0.14
 	golang.org/x/image v0.46.0
+	golang.org/x/text v0.42.0
 )
 
 require (

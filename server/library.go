@@ -26,13 +26,14 @@ type Library struct {
 	mu        sync.Mutex
 	resizeMu  sync.Mutex
 	durCache  map[string]float64 // path|size|mtime -> seconds
+	cueCache  map[string]cueCacheEntry
 	coverSeen map[string]coverCheck
 }
 
 func NewLibrary(root, dataDir string) *Library {
 	cd := filepath.Join(dataDir, "covers")
 	os.MkdirAll(cd, 0755)
-	return &Library{Root: root, coverDir: cd, durCache: map[string]float64{}, coverSeen: map[string]coverCheck{}}
+	return &Library{Root: root, coverDir: cd, durCache: map[string]float64{}, coverSeen: map[string]coverCheck{}, cueCache: map[string]cueCacheEntry{}}
 }
 
 var errOutside = errors.New("path is outside the music folder")
@@ -87,9 +88,25 @@ func (l *Library) Browse(rel string) (*Listing, error) {
 	} else {
 		out.Name = "Музыка"
 	}
+	hidden := map[string]bool{} // album files replaced by their CUE songs
+	for _, de := range des {
+		if !de.IsDir() && strings.EqualFold(filepath.Ext(de.Name()), ".cue") {
+			cp := filepath.Join(full, de.Name())
+			if sh := l.parseCue(cp); sh != nil {
+				hidden[sh.Audio] = true
+				for _, t := range sh.Tracks {
+					e := Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(cp), t.Num)}
+					if t.End > t.Start {
+						e.Dur = t.End - t.Start
+					}
+					out.Items = append(out.Items, e)
+				}
+			}
+		}
+	}
 	for _, de := range des {
 		name := de.Name()
-		if strings.HasPrefix(name, ".") {
+		if strings.HasPrefix(name, ".") || hidden[filepath.Join(full, name)] {
 			continue
 		}
 		p := filepath.Join(full, name)
@@ -132,6 +149,12 @@ func (l *Library) duration(p string, st os.FileInfo) float64 {
 
 // Collect returns queue items for a file, or for every track inside a folder (recursively, in order).
 func (l *Library) Collect(rel string) ([]Item, error) {
+	if cue, num, ok := splitCuePath(rel); ok {
+		return l.cueItems(cue, num)
+	}
+	if strings.EqualFold(filepath.Ext(rel), ".cue") {
+		return l.cueItems(rel, 0)
+	}
 	full, err := l.Abs(rel)
 	if err != nil {
 		return nil, err
@@ -153,6 +176,9 @@ func (l *Library) Collect(rel string) ([]Item, error) {
 	}
 	for _, e := range ls.Items {
 		if e.Dir {
+			sub, _ := l.Collect(e.Path)
+			items = append(items, sub...)
+		} else if _, _, ok := splitCuePath(e.Path); ok {
 			sub, _ := l.Collect(e.Path)
 			items = append(items, sub...)
 		} else {
