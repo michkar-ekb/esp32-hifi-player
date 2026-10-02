@@ -23,7 +23,8 @@ func main() {
 		log.Fatal(err)
 	}
 	if st, err := os.Stat(root); err != nil || !st.IsDir() {
-		log.Fatalf("music folder %q not found", root)
+		// not fatal: the folder may be a network share that comes up later; radio works meanwhile
+		log.Printf("music folder %q is not available yet: %v", root, err)
 	}
 	os.MkdirAll(*data, 0755)
 

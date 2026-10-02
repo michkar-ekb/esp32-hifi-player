@@ -34,6 +34,27 @@ a `cover.jpg` / `folder.jpg` (or any image) in an album folder is used as the co
 | `-data` | `~/.s3hifi` | queue, volume, radio list, cover cache |
 | `-listen` | `:8097` | address of the web remote and the player stream |
 
+### Start with the system (Linux, systemd)
+
+```ini
+# /etc/systemd/system/s3hifi.service
+[Unit]
+Description=S3 Hi-Fi streaming server
+Wants=network-online.target
+After=network-online.target remote-fs.target
+
+[Service]
+ExecStart=/opt/s3hifi/s3hifi -music /srv/music -data /opt/s3hifi/data -listen :8097
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+`systemctl enable --now s3hifi`, and open TCP port 8097 in the firewall. If the music folder is a network
+share that is not mounted yet, the server still starts: radio works and the folders appear once the share is up.
+
 ## Player protocol
 
 The player (ESP32-S3) talks plain HTTP/1.0:
