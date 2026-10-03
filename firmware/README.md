@@ -14,6 +14,19 @@
 - Three tasks: network stream and server poll on core 0, I2S output on core 1 with high priority.
   Pause and volume act immediately; a new track or a seek drops the buffer (about 0.5 s to restart).
 
+## Flash a ready build
+
+Download `s3hifi-player-esp32s3-n16r8.bin` from
+[Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest): bootloader, partitions
+and firmware in one image, written at address 0. Connect the devkit by USB and run:
+
+```
+esptool.py --chip esp32s3 write_flash 0x0 s3hifi-player-esp32s3-n16r8.bin
+```
+
+(`pip install esptool`; on Windows the Arduino IDE already ships `esptool.exe`.) The image is built
+for ESP32-S3 N16R8 (16 MB flash, 8 MB octal PSRAM).
+
 ## First start
 
 No Wi-Fi settings are compiled in. On first start (or when the saved network is gone for a minute)

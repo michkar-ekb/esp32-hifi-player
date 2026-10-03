@@ -18,6 +18,15 @@ The bench build: in the case on the stereo, and inside.
 
 ![Block diagram](hardware/schematic.svg)
 
+## Quick start
+
+1. **Server** on a Linux PC that holds the music:
+   `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music`
+   (Windows: [`s3hifi-windows-amd64.exe`](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), see [server](server)).
+2. **Player**: flash `s3hifi-player-esp32s3-n16r8.bin` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest),
+   connect a phone to the "S3 Hi-Fi Setup" Wi-Fi and pick your network. The player finds the server by itself.
+3. **Remote**: open `http://<server>:8097` on the phone.
+
 ## How it works
 
 - **Streaming server** (a home PC or a mini PC, Windows or Linux) stores the music, decodes

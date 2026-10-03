@@ -18,6 +18,15 @@
 
 ![Функциональная схема](hardware/schematic.svg)
 
+## Быстрый старт
+
+1. **Сервер** на Linux-компьютере, где лежит музыка:
+   `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /путь/к/музыке`
+   (Windows: [`s3hifi-windows-amd64.exe`](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), см. [server](server)).
+2. **Плеер**: залить `s3hifi-player-esp32s3-n16r8.bin` из [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest),
+   подключить телефон к Wi-Fi «S3 Hi-Fi Setup» и выбрать свою сеть. Сервер плеер найдёт сам.
+3. **Пульт**: открыть на телефоне `http://<сервер>:8097`.
+
 ## Как это работает
 
 - **Стриминг-сервер** (домашний ПК или мини-ПК, Windows или Linux) хранит музыку, раскодирует

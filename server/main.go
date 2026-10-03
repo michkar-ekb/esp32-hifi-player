@@ -12,13 +12,21 @@ import (
 	"path/filepath"
 )
 
+// Version is set at build time: go build -ldflags "-X main.Version=0.4.0"
+var Version = "dev"
+
 func main() {
 	home, _ := os.UserHomeDir()
 	music := flag.String("music", filepath.Join(home, "Music"), "music folder")
 	data := flag.String("data", filepath.Join(home, ".s3hifi"), "folder for settings, queue and cover cache")
 	listen := flag.String("listen", ":8097", "address of the web remote and the player stream")
 	sacdInfo := flag.String("sacd-info", "", "print the track list of a SACD .iso and exit (diagnostics)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println("S3 Hi-Fi server", Version)
+		return
+	}
 	if *sacdInfo != "" {
 		d, err := parseSACD(*sacdInfo)
 		if err != nil {
@@ -44,6 +52,6 @@ func main() {
 	lib := NewLibrary(root, *data)
 	s := &Server{lib: lib, player: NewPlayer(lib, *data), radios: NewRadios(*data)}
 	go answerDiscovery(*listen)
-	log.Printf("S3 Hi-Fi server: music %s, remote http://<this-pc>%s", root, *listen)
+	log.Printf("S3 Hi-Fi server %s: music %s, remote http://<this-pc>%s", Version, root, *listen)
 	log.Fatal(http.ListenAndServe(*listen, s.Routes()))
 }

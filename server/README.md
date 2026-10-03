@@ -27,42 +27,86 @@ everything to PCM and streams it to the player. The web remote for the phone is 
 - **One binary, no dependencies.** Builds for Windows and Linux (x86-64 and ARM).
   So far it has been run on Linux only.
 
-## Run
+## Install
+
+### Linux — one command
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music
+```
+
+The script downloads the latest release for your CPU (x86-64, ARM64 such as Raspberry Pi 4/5,
+ARMv7 such as Orange Pi / older Raspberry Pi), installs it to `/opt/s3hifi`, creates the `s3hifi`
+service that starts with the system and runs as your user, and opens port **8097** (TCP for the remote
+and the stream, UDP for player discovery) in firewalld or ufw. Without a folder argument it uses
+`~/Music`. Run the same command again to update.
+
+Optional: `sudo dnf install ffmpeg` / `sudo apt install ffmpeg` — for DTS, APE, M4A, OGG,
+WavPack and files above 96 kHz.
+
+Then open `http://<this-computer>:8097` on the phone.
+
+### Linux — by hand
+
+1. Download `s3hifi-linux-amd64` (or `-arm64`, `-armv7`) from
+   [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), save it as
+   `/opt/s3hifi/s3hifi`, `chmod +x` it.
+2. Try it: `/opt/s3hifi/s3hifi -music ~/Music -data /opt/s3hifi/data`.
+3. Start with the system — `/etc/systemd/system/s3hifi.service`:
+
+   ```ini
+   [Unit]
+   Description=S3 Hi-Fi streaming server
+   Wants=network-online.target
+   After=network-online.target remote-fs.target
+
+   [Service]
+   User=your-user
+   ExecStart=/opt/s3hifi/s3hifi -music /home/your-user/Music -data /opt/s3hifi/data -listen :8097
+   Restart=always
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+   `sudo systemctl enable --now s3hifi`
+4. Open port 8097 TCP and UDP: `sudo firewall-cmd --permanent --add-port=8097/tcp --add-port=8097/udp && sudo firewall-cmd --reload`
+   (Ubuntu: `sudo ufw allow 8097`).
+
+If the music folder is a network share that is not mounted yet, the server still starts:
+radio works and the folders appear once the share is up.
+
+### Windows
+
+No installer yet. Download `s3hifi-windows-amd64.exe` from
+[Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), put it in a folder and run:
 
 ```
+s3hifi-windows-amd64.exe -music "D:\Music"
+```
+
+Allow it in the Windows firewall when asked (private networks). For DTS, APE and other extra formats put
+`ffmpeg.exe` and `ffprobe.exe` next to it (any LGPL build). Windows has been tested less than Linux.
+
+### Build from source
+
+```bash
+cd server
 go build -o s3hifi .
-./s3hifi -music /path/to/music -listen :8097
 ```
 
-Open `http://<this-pc>:8097` on the phone. Folders are browsed as they are on disk;
-a `cover.jpg` / `folder.jpg` (or any image) in an album folder is used as the cover.
+### Options
 
 | Flag | Default | |
 |---|---|---|
 | `-music` | `~/Music` | music folder |
 | `-data` | `~/.s3hifi` | queue, volume, radio list, cover cache |
 | `-listen` | `:8097` | address of the web remote and the player stream |
+| `-version` | | print the version |
 
-### Start with the system (Linux, systemd)
-
-```ini
-# /etc/systemd/system/s3hifi.service
-[Unit]
-Description=S3 Hi-Fi streaming server
-Wants=network-online.target
-After=network-online.target remote-fs.target
-
-[Service]
-ExecStart=/opt/s3hifi/s3hifi -music /srv/music -data /opt/s3hifi/data -listen :8097
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-`systemctl enable --now s3hifi`, and open TCP port 8097 in the firewall. If the music folder is a network
-share that is not mounted yet, the server still starts: radio works and the folders appear once the share is up.
+Folders are browsed as they are on disk; a `cover.jpg` / `folder.jpg` (or any image) in an album
+folder is used as the cover.
 
 ## Player protocol
 
