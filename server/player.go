@@ -21,6 +21,7 @@ type Item struct {
 	Dur   float64 `json:"dur,omitempty"`   // seconds, 0 = unknown
 	Start float64 `json:"start,omitempty"` // CUE song: where it starts in the album file
 	End   float64 `json:"end,omitempty"`   // CUE song: where it ends (0 = end of file)
+	Track int     `json:"track,omitempty"` // SACD image: song number
 	Err   string  `json:"err,omitempty"`   // why it could not be played
 }
 
@@ -517,7 +518,9 @@ func (p *Player) openNextLocked() bool {
 		} else {
 			var full string
 			full, err = p.lib.Abs(it.Path)
-			if err == nil {
+			if err == nil && it.Track > 0 {
+				src, err = openSACDTrack(full, it.Track)
+			} else if err == nil {
 				src, err = openFile(full)
 			}
 		}

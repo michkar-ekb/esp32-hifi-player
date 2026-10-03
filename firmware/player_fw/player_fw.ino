@@ -1,4 +1,4 @@
-// S3 Hi-Fi player firmware v0.3 — thin client of the S3 Hi-Fi server.
+// S3 Hi-Fi player firmware v0.4 — thin client of the S3 Hi-Fi server.
 // The server decodes everything to PCM; the player keeps a ~10 s buffer in PSRAM and
 // clocks it out over I2S as 32-bit samples (what the ES9038Q2M board expects).
 //
@@ -12,13 +12,22 @@
 #include <driver/i2s.h>
 #include <math.h>
 #include <lwip/sockets.h>
+#include <Preferences.h>
+#include <WebServer.h>
+#include <DNSServer.h>
+#include <WiFiUdp.h>
 #include "lane.h"
 
 // ---------- settings ----------
-const char *WIFI_SSID = "your-wifi";
-const char *WIFI_PASS = "your-password";
-const char *SERVER_HOST = "192.168.1.10";   // IP of the PC running the S3 Hi-Fi server
-const uint16_t SERVER_PORT = 8097;
+// Wi-Fi and the server are set up from a phone: with no saved network (or if it is lost for a minute)
+// the player opens the access point "S3 Hi-Fi Setup" with a setup page. The server is found by itself:
+// the player broadcasts "S3HIFI?" on UDP 8097 and the server answers. Holding BOOT for 5 s erases the settings.
+const char *AP_NAME = "S3 Hi-Fi Setup";
+const uint16_t DISCOVERY_PORT = 8097;
+String cfgSsid, cfgPass, cfgServer;     // saved in NVS; cfgServer empty = find automatically
+char serverIp[40] = "";
+volatile uint16_t serverPort = 8097;
+volatile bool serverKnown = false;
 
 #define I2S_BCLK 1
 #define I2S_LRCK 2
@@ -166,12 +175,12 @@ bool laneOpen(Lane &L, uint32_t epoch, int lane, int lanes) {
   setsockopt(L.fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
   struct sockaddr_in a = {};
   a.sin_family = AF_INET;
-  a.sin_port = htons(SERVER_PORT);
-  a.sin_addr.s_addr = inet_addr(SERVER_HOST);
+  a.sin_port = htons(serverPort);
+  a.sin_addr.s_addr = inet_addr(serverIp);
   if (connect(L.fd, (struct sockaddr *)&a, sizeof(a)) != 0) { laneClose(L); return false; }
   char req[160];
   int k = snprintf(req, sizeof(req), "GET /esp/stream?epoch=%u&lane=%d&lanes=%d HTTP/1.0\r\nHost: %s\r\n\r\n",
-                   epoch, lane, lanes, SERVER_HOST);
+                   epoch, lane, lanes, serverIp);
   if (send(L.fd, req, k, 0) != k) { laneClose(L); return false; }
   uint32_t last4 = 0;                    // skip the HTTP header up to "\r\n\r\n"
   uint8_t b;
@@ -254,7 +263,7 @@ void streamOnce(uint32_t epoch) {
 
 void streamTask(void *) {
   for (;;) {
-    if (WiFi.status() != WL_CONNECTED) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
+    if (WiFi.status() != WL_CONNECTED || !serverKnown) { vTaskDelay(pdMS_TO_TICKS(500)); continue; }
     uint32_t e = serverEpoch;
     if (e != streamEpoch) {          // new epoch: drop everything that was buffered
       flushReq = true;
@@ -270,9 +279,14 @@ void streamTask(void *) {
 void pollTask(void *) {
   for (;;) {
     vTaskDelay(pdMS_TO_TICKS(250));
-    if (WiFi.status() != WL_CONNECTED) continue;
+    static int fails = 0;
+    if (WiFi.status() != WL_CONNECTED || !serverKnown) continue;
     WiFiClient c;
-    if (!c.connect(SERVER_HOST, SERVER_PORT, 1000)) continue;
+    if (!c.connect(serverIp, serverPort, 1000)) {
+      if (++fails >= 12 && cfgServer.isEmpty()) serverKnown = false;   // server moved? look for it again
+      continue;
+    }
+    fails = 0;
     uint32_t bufMs = outRate ? (uint32_t)((wr - rd) * 1000 / outRate) : 0;
     bool rs = resyncReq;
     static uint32_t lastBytes = 0, lastMs = 0;
@@ -280,7 +294,7 @@ void pollTask(void *) {
     uint32_t kbps = lastMs && now > lastMs ? (uint32_t)((uint64_t)(bytes - lastBytes) * 8 / (now - lastMs)) : 0;
     lastBytes = bytes; lastMs = now;
     c.printf("GET /esp/poll?epoch=%u&played=%llu&buf=%u&rssi=%d&kbps=%u%s HTTP/1.0\r\nHost: %s\r\n\r\n",
-             streamEpoch, (unsigned long long)played, bufMs, WiFi.RSSI(), kbps, rs ? "&resync=1" : "", SERVER_HOST);
+             streamEpoch, (unsigned long long)played, bufMs, WiFi.RSSI(), kbps, rs ? "&resync=1" : "", serverIp);
     if (rs) resyncReq = false;
     String resp;
     uint32_t t0 = millis();
@@ -301,29 +315,211 @@ void pollTask(void *) {
   }
 }
 
+// ---------- finding the server ----------
+void discoveryTask(void *) {
+  WiFiUDP udp;
+  for (;;) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    if (serverKnown || WiFi.status() != WL_CONNECTED) continue;
+    if (!cfgServer.isEmpty()) {                       // typed in on the setup page
+      IPAddress ip;
+      String host = cfgServer;
+      int colon = host.indexOf(':');
+      if (colon > 0) { serverPort = host.substring(colon + 1).toInt(); host = host.substring(0, colon); }
+      if (ip.fromString(host) || WiFi.hostByName(host.c_str(), ip)) {
+        strlcpy(serverIp, ip.toString().c_str(), sizeof(serverIp));
+        serverKnown = true;
+        Serial.printf("server (set by hand): %s:%u\n", serverIp, serverPort);
+      }
+      continue;
+    }
+    udp.begin(0);
+    udp.beginPacket(WiFi.broadcastIP(), DISCOVERY_PORT);
+    udp.print("S3HIFI?");
+    udp.endPacket();
+    uint32_t t0 = millis();
+    while (millis() - t0 < 800) {
+      if (udp.parsePacket() > 0) {
+        char b[32] = {0};
+        udp.read(b, sizeof(b) - 1);
+        if (!strncmp(b, "S3HIFI ", 7)) {
+          serverPort = atoi(b + 7);
+          strlcpy(serverIp, udp.remoteIP().toString().c_str(), sizeof(serverIp));
+          serverKnown = true;
+          Serial.printf("server found: %s:%u\n", serverIp, serverPort);
+          break;
+        }
+      }
+      vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    udp.stop();
+  }
+}
+
+// ---------- setup access point and page ----------
+String htmlEsc(const String &s) {
+  String o;
+  for (char ch : s) {
+    if (ch == '<') o += "&lt;"; else if (ch == '>') o += "&gt;"; else if (ch == '"') o += "&quot;"; else if (ch == '&') o += "&amp;"; else o += ch;
+  }
+  return o;
+}
+
+WebServer web(80);
+DNSServer dns;
+bool portalOn = false;
+String netOptions;                                    // <option>s from the last scan
+
+// Scanning makes the access point hop channels and drops the phone that is on the setup page,
+// so we scan before the point goes up (and again only when asked).
+void scanNetworks() {
+  int n = WiFi.scanNetworks();
+  netOptions = "";
+  for (int i = 0; i < n; i++) {
+    String ss = WiFi.SSID(i);
+    if (ss.isEmpty() || netOptions.indexOf("\"" + htmlEsc(ss) + "\"") >= 0) continue;
+    netOptions += "<option value=\"" + htmlEsc(ss) + "\"" + (ss == cfgSsid ? " selected" : "") + ">" + htmlEsc(ss) +
+                  " (" + WiFi.RSSI(i) + " dBm)</option>";
+  }
+  WiFi.scanDelete();
+}
+
+
+const char PAGE_HEAD[] PROGMEM = R"(<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>S3 Hi-Fi</title><style>
+body{margin:0;padding:20px 16px;background:#121214;color:#ecebe8;font:16px/1.4 system-ui,sans-serif}
+h1{font-size:20px;margin:0 0 4px}p{color:#8f8d88;margin:0 0 16px}label{display:block;margin:14px 0 6px}
+select,input{width:100%;box-sizing:border-box;height:46px;border-radius:10px;border:1px solid #2a2a30;background:#1b1b1f;color:#ecebe8;padding:0 12px;font:inherit}
+button{margin-top:20px;width:100%;height:50px;border:0;border-radius:10px;background:#d4a95a;color:#1a1408;font:600 17px system-ui}
+small{color:#8f8d88}</style></head><body>)";
+
+void pageRoot() {
+  String h = FPSTR(PAGE_HEAD);
+  h += "<h1>S3 Hi-Fi — настройка</h1><p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>";
+  h += "<form method=post action=/save><label for=ssid>Сеть Wi-Fi</label><select id=ssid name=ssid>";
+  h += netOptions;
+  h += "<option value=\"\">другая сеть…</option></select>";
+  h += "<p style=\"margin:8px 0 0\"><small><a style=\"color:#d4a95a\" href=/rescan>Обновить список</a> — "
+       "телефон на пару секунд отключится от точки, потом вернётся</small></p>";
+  h += "<label for=other>Имя сети, если её нет в списке</label><input id=other name=other autocomplete=off>";
+  h += "<label for=pass>Пароль</label><input id=pass name=pass type=password autocomplete=off>";
+  h += "<label for=server>Адрес сервера <small>(можно не заполнять)</small></label><input id=server name=server value=\"" + htmlEsc(cfgServer) + "\" placeholder=\"найти автоматически\">";
+  h += "<button>Сохранить и подключиться</button></form>";
+  h += "<p style=\"margin-top:24px\"><small>Плеер " + WiFi.macAddress() + ". Чтобы стереть настройки, держите кнопку BOOT 5 секунд.</small></p></body></html>";
+  web.send(200, "text/html; charset=utf-8", h);
+}
+
+void pageSave() {
+  String ss = web.arg("ssid");
+  if (ss.isEmpty()) ss = web.arg("other");
+  ss.trim();
+  if (ss.isEmpty()) { web.sendHeader("Location", "/"); web.send(302); return; }
+  Preferences prefs;
+  prefs.begin("s3hifi", false);
+  prefs.putString("ssid", ss);
+  prefs.putString("pass", web.arg("pass"));
+  String sv = web.arg("server"); sv.trim();
+  prefs.putString("server", sv);
+  prefs.end();
+  String h = FPSTR(PAGE_HEAD);
+  h += "<h1>Сохранено</h1><p>Плеер перезагружается и подключается к сети «" + htmlEsc(ss) + "». "
+       "Если пароль неверный, через минуту снова появится сеть «S3 Hi-Fi Setup».</p></body></html>";
+  web.send(200, "text/html; charset=utf-8", h);
+  delay(1500);
+  ESP.restart();
+}
+
+void startPortal() {
+  if (portalOn) return;
+  WiFi.mode(WIFI_STA);
+  scanNetworks();                                     // before the access point: see scanNetworks()
+  WiFi.mode(cfgSsid.isEmpty() ? WIFI_AP : WIFI_AP_STA);
+  WiFi.softAP(AP_NAME);
+  delay(100);
+  dns.start(53, "*", WiFi.softAPIP());                // every name -> us: the phone shows the page by itself
+  web.on("/", HTTP_GET, pageRoot);
+  web.on("/save", HTTP_POST, pageSave);
+  web.on("/rescan", HTTP_GET, [] {
+    web.sendHeader("Location", "/");
+    web.send(302);
+    delay(100);
+    scanNetworks();
+  });
+  web.onNotFound([] { web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/"); web.send(302); });
+  web.begin();
+  portalOn = true;
+  Serial.printf("setup access point \"%s\" at %s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
+}
+
+void stopPortal() {
+  if (!portalOn) return;
+  web.stop();
+  dns.stop();
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  portalOn = false;
+  Serial.println("setup access point closed");
+}
+
 void setup() {
   Serial.begin(115200);
+  pinMode(0, INPUT_PULLUP);                           // BOOT button: hold 5 s to erase Wi-Fi settings
   ring = (int32_t *)ps_malloc(RING_FRAMES * 8);
   if (!ring) { Serial.println("no PSRAM!"); for (;;) delay(1000); }
   i2sInit();
-  WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);                 // power save adds latency and drops throughput
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  Serial.print("WiFi");
-  while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print("."); }
-  Serial.printf(" OK, IP %s, RSSI %d dBm, server %s:%u\n", WiFi.localIP().toString().c_str(), WiFi.RSSI(), SERVER_HOST, SERVER_PORT);
+  Preferences prefs;
+  prefs.begin("s3hifi", true);
+  cfgSsid = prefs.getString("ssid", "");
+  cfgPass = prefs.getString("pass", "");
+  cfgServer = prefs.getString("server", "");
+  prefs.end();
+  WiFi.persistent(false);
+  WiFi.setSleep(false);                               // power save adds latency and drops throughput
+  if (cfgSsid.isEmpty()) {
+    startPortal();
+  } else {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(cfgSsid.c_str(), cfgPass.c_str());
+    Serial.printf("WiFi \"%s\"", cfgSsid.c_str());
+    for (int i = 0; i < 60 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print("."); }
+    if (WiFi.status() == WL_CONNECTED) Serial.printf(" OK, IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    else { Serial.println(" failed"); startPortal(); }
+  }
   xTaskCreatePinnedToCore(i2sTask, "i2s", 6144, nullptr, configMAX_PRIORITIES - 2, nullptr, 1);
   xTaskCreatePinnedToCore(streamTask, "stream", 8192, nullptr, 5, nullptr, 0);
   xTaskCreatePinnedToCore(pollTask, "poll", 6144, nullptr, 4, nullptr, 0);
+  xTaskCreatePinnedToCore(discoveryTask, "discover", 4096, nullptr, 3, nullptr, 0);
 }
 
 void loop() {
-  static uint32_t t = 0;
+  static uint32_t t = 0, lastOk = millis(), lastTry = 0, bootDown = 0, okSince = 0;
+  bool up = WiFi.status() == WL_CONNECTED;
+  if (portalOn) { dns.processNextRequest(); web.handleClient(); }
+  if (up) {
+    lastOk = millis();
+    if (!okSince) okSince = millis();
+    if (portalOn && !cfgSsid.isEmpty() && millis() - okSince > 3000) stopPortal();   // the saved network works again
+  } else {
+    okSince = 0;
+    serverKnown = cfgServer.isEmpty() ? false : serverKnown;
+    // retry the saved network, but not while a phone is on the setup page (retries make the AP hop channels)
+    bool phoneOnSetup = portalOn && WiFi.softAPgetStationNum() > 0;
+    if (!cfgSsid.isEmpty() && !phoneOnSetup && millis() - lastTry > 10000) { lastTry = millis(); WiFi.begin(cfgSsid.c_str(), cfgPass.c_str()); }
+    if (millis() - lastOk > 60000) startPortal();     // lost for a minute: let the user fix it from a phone
+  }
+  if (digitalRead(0) == LOW) {                        // BOOT held for 5 s: forget Wi-Fi and server
+    if (!bootDown) bootDown = millis();
+    if (millis() - bootDown > 5000) {
+      Preferences prefs; prefs.begin("s3hifi", false); prefs.clear(); prefs.end();
+      Serial.println("settings erased");
+      delay(200);
+      ESP.restart();
+    }
+  } else bootDown = 0;
   if (millis() - t > 2000) {
     t = millis();
-    Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d\n", streamEpoch, playState, volumePct,
-                  outRate ? (double)(wr - rd) / outRate : 0.0, outRate, (unsigned long long)played, WiFi.RSSI());
+    Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d | server %s\n", streamEpoch, playState, volumePct,
+                  outRate ? (double)(wr - rd) / outRate : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-");
   }
-  if (WiFi.status() != WL_CONNECTED) WiFi.reconnect(), delay(2000);
-  delay(50);
+  delay(portalOn ? 2 : 20);
 }

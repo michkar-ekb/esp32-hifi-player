@@ -89,6 +89,16 @@ func (l *Library) Browse(rel string) (*Listing, error) {
 		out.Name = "Музыка"
 	}
 	hidden := map[string]bool{} // album files replaced by their CUE songs
+	for _, de := range des {    // SACD disc images: show the songs of the stereo area
+		if !de.IsDir() && strings.EqualFold(filepath.Ext(de.Name()), ".iso") {
+			ip := filepath.Join(full, de.Name())
+			if d, err := parseSACD(ip); err == nil {
+				for _, t := range d.Tracks {
+					out.Items = append(out.Items, Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(ip), t.Num), Dur: t.seconds()})
+				}
+			}
+		}
+	}
 	for _, de := range des {
 		if !de.IsDir() && strings.EqualFold(filepath.Ext(de.Name()), ".cue") {
 			cp := filepath.Join(full, de.Name())
@@ -152,6 +162,9 @@ func (l *Library) Collect(rel string) ([]Item, error) {
 	if cue, num, ok := splitCuePath(rel); ok {
 		return l.cueItems(cue, num)
 	}
+	if iso, num, ok := splitISOPath(rel); ok {
+		return l.sacdItems(iso, num)
+	}
 	if strings.EqualFold(filepath.Ext(rel), ".cue") {
 		return l.cueItems(rel, 0)
 	}
@@ -176,6 +189,9 @@ func (l *Library) Collect(rel string) ([]Item, error) {
 	}
 	for _, e := range ls.Items {
 		if e.Dir {
+			sub, _ := l.Collect(e.Path)
+			items = append(items, sub...)
+		} else if _, _, ok := splitISOPath(e.Path); ok {
 			sub, _ := l.Collect(e.Path)
 			items = append(items, sub...)
 		} else if _, _, ok := splitCuePath(e.Path); ok {
@@ -338,8 +354,30 @@ func fmtLabel(it Item, f Format) string {
 	if f.Codec != "" {
 		s = fmt.Sprintf("%s → стерео · %s кГц · %d бит", strings.ToUpper(f.Codec), khz, f.Bits)
 	}
+	if kind == "ISO" {
+		s = "SACD → PCM " + khz + " кГц · 24 бит"
+	}
 	if kind == "DSF" || kind == "DFF" {
 		s = "DSD → PCM " + khz + " кГц · 24 бит"
 	}
 	return s
+}
+
+// sacdItems turns songs of a SACD image into queue items (num 0 = all songs).
+func (l *Library) sacdItems(isoRel string, num int) ([]Item, error) {
+	full, err := l.Abs(isoRel)
+	if err != nil {
+		return nil, err
+	}
+	d, err := parseSACD(full)
+	if err != nil {
+		return nil, err
+	}
+	var items []Item
+	for _, t := range d.Tracks {
+		if num == 0 || t.Num == num {
+			items = append(items, Item{Kind: "file", Path: l.relOf(full), Title: t.label(), Dur: t.seconds(), Track: t.Num})
+		}
+	}
+	return items, nil
 }

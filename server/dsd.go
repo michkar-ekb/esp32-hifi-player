@@ -56,13 +56,18 @@ func openDSD(path string, open opener) (Source, error) {
 		f.Close()
 		return nil, err
 	}
+	return s.finish()
+}
+
+// finish sets up the decimation filter once the DSD rate and channel count are known.
+func (s *dsdSource) finish() (Source, error) {
 	base := 88200
 	if s.dsdRate%88200 != 0 {
 		base = 96000
 	}
 	s.ratio = s.dsdRate / base
 	if s.dsdRate%base != 0 || s.ratio < 8 || s.ratio%8 != 0 {
-		f.Close()
+		s.f.Close()
 		return nil, fmt.Errorf("DSD: unsupported rate %d", s.dsdRate)
 	}
 	out := s.inCh

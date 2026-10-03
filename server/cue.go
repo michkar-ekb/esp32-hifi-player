@@ -160,7 +160,7 @@ func unquote(s string) string { return strings.Trim(strings.TrimSpace(s), `"`) }
 // findCueAudio finds the file a cue refers to; rips often say "album.wav" next to "album.ape".
 func findCueAudio(dir, name string) string {
 	name = filepath.Base(filepath.FromSlash(strings.ReplaceAll(name, `\`, "/")))
-	if p := filepath.Join(dir, name); fileExists(p) {
+	if p := filepath.Join(dir, name); fileExists(p) && isAudio(p) { // SACD Extract writes cues that point at themselves
 		return p
 	}
 	base := strings.ToLower(titleOf(name))

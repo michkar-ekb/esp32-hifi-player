@@ -1,6 +1,6 @@
 # ESP32-S3 firmware
 
-`player_fw/` — the player, version 0.3. It decodes nothing: it receives PCM from the
+`player_fw/` — the player, version 0.4. It decodes nothing: it receives PCM from the
 [server](../server), keeps about 10 seconds in PSRAM and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
@@ -14,6 +14,14 @@
 - Three tasks: network stream and server poll on core 0, I2S output on core 1 with high priority.
   Pause and volume act immediately; a new track or a seek drops the buffer (about 0.5 s to restart).
 
+## First start
+
+No Wi-Fi settings are compiled in. On first start (or when the saved network is gone for a minute)
+the player opens the access point **"S3 Hi-Fi Setup"**; connect a phone to it and the setup page opens
+by itself (or go to `192.168.4.1`). Pick your network, type the password, save. The server is found
+automatically: the player broadcasts `S3HIFI?` on UDP port 8097 and the server answers. A server
+address can still be typed in on the setup page. Holding **BOOT** for 5 seconds erases the settings.
+
 ## Build
 
 Arduino core for ESP32 **2.0.17**, board settings:
@@ -22,4 +30,4 @@ Arduino core for ESP32 **2.0.17**, board settings:
 arduino-cli compile --fqbn esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M player_fw
 ```
 
-Before building, set your Wi-Fi name, password and the server address at the top of `player_fw.ino`.
+Nothing to edit before building: Wi-Fi is set up from a phone (see above).
