@@ -88,31 +88,58 @@ func (l *Library) Browse(rel string) (*Listing, error) {
 	} else {
 		out.Name = "Музыка"
 	}
+	// albums as one file + .cue, and SACD images: shown as songs, disc by disc, in their own order
 	hidden := map[string]bool{} // album files replaced by their CUE songs
-	for _, de := range des {    // SACD disc images: show the songs of the stereo area
-		if !de.IsDir() && strings.EqualFold(filepath.Ext(de.Name()), ".iso") {
-			ip := filepath.Join(full, de.Name())
-			if d, err := parseSACD(ip); err == nil {
+	type disc struct {
+		name  string
+		songs []Entry
+	}
+	var discs []disc
+	for _, de := range des {
+		ext := strings.ToLower(filepath.Ext(de.Name()))
+		if de.IsDir() || (ext != ".iso" && ext != ".cue") {
+			continue
+		}
+		p := filepath.Join(full, de.Name())
+		var songs []Entry
+		if ext == ".iso" {
+			if d, err := parseSACD(p); err == nil {
 				for _, t := range d.Tracks {
-					out.Items = append(out.Items, Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(ip), t.Num), Dur: t.seconds()})
+					songs = append(songs, Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(p), t.Num), Dur: t.seconds()})
 				}
+			}
+		} else if sh := l.parseCue(p); sh != nil {
+			hidden[sh.Audio] = true
+			for _, t := range sh.Tracks {
+				e := Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(p), t.Num)}
+				if t.End > t.Start {
+					e.Dur = t.End - t.Start
+				}
+				songs = append(songs, e)
+			}
+		}
+		if len(songs) > 0 {
+			discs = append(discs, disc{titleOf(de.Name()), songs})
+		}
+	}
+	sort.Slice(discs, func(i, j int) bool {
+		return naturalLess(strings.ToLower(discs[i].name), strings.ToLower(discs[j].name))
+	})
+	if len(discs) > 1 { // "CD1 · 01. Song": what differs between the disc file names
+		names := make([]string, len(discs))
+		for i, d := range discs {
+			names[i] = d.name
+		}
+		tags := discTags(names)
+		for i := range discs {
+			for k := range discs[i].songs {
+				discs[i].songs[k].Name = tags[i] + " · " + discs[i].songs[k].Name
 			}
 		}
 	}
-	for _, de := range des {
-		if !de.IsDir() && strings.EqualFold(filepath.Ext(de.Name()), ".cue") {
-			cp := filepath.Join(full, de.Name())
-			if sh := l.parseCue(cp); sh != nil {
-				hidden[sh.Audio] = true
-				for _, t := range sh.Tracks {
-					e := Entry{Name: t.label(), Path: fmt.Sprintf("%s#%d", l.relOf(cp), t.Num)}
-					if t.End > t.Start {
-						e.Dur = t.End - t.Start
-					}
-					out.Items = append(out.Items, e)
-				}
-			}
-		}
+	var discSongs []Entry
+	for _, d := range discs {
+		discSongs = append(discSongs, d.songs...)
 	}
 	for _, de := range des {
 		name := de.Name()
@@ -137,6 +164,14 @@ func (l *Library) Browse(rel string) (*Listing, error) {
 		}
 		return naturalLess(strings.ToLower(a.Name), strings.ToLower(b.Name))
 	})
+	if len(discSongs) > 0 { // folders, then the disc songs in disc order, then loose files
+		dirs := 0
+		for dirs < len(out.Items) && out.Items[dirs].Dir {
+			dirs++
+		}
+		rest := append([]Entry(nil), out.Items[dirs:]...)
+		out.Items = append(append(out.Items[:dirs], discSongs...), rest...)
+	}
 	if l.findCover(full) != "" {
 		out.Cover = "/api/cover?path=" + urlQuery(out.Path)
 	}
@@ -351,6 +386,10 @@ func fmtLabel(it Item, f Format) string {
 	}
 	khz := strings.Replace(strings.TrimSuffix(strings.TrimSuffix(fmt.Sprintf("%.1f", float64(f.Rate)/1000), "0"), "."), ".", ",", 1)
 	s := fmt.Sprintf("%s · %s кГц · %d бит", kind, khz, f.Bits)
+	if f.SrcRate > f.Rate {
+		src := strings.Replace(strings.TrimSuffix(strings.TrimSuffix(fmt.Sprintf("%.1f", float64(f.SrcRate)/1000), "0"), "."), ".", ",", 1)
+		s = fmt.Sprintf("%s · %s → %s кГц · %d бит", kind, src, khz, f.Bits)
+	}
 	if f.Codec != "" {
 		s = fmt.Sprintf("%s → стерео · %s кГц · %d бит", strings.ToUpper(f.Codec), khz, f.Bits)
 	}
@@ -380,4 +419,34 @@ func (l *Library) sacdItems(isoRel string, num int) ([]Item, error) {
 		}
 	}
 	return items, nil
+}
+
+// discTags keeps what differs between disc file names: "Artist - Best CD1", "... CD2" -> "CD1", "CD2".
+func discTags(names []string) []string {
+	words := make([][]string, len(names))
+	for i, n := range names {
+		words[i] = strings.Fields(n)
+	}
+	common := 0
+	for {
+		ok := true
+		for _, w := range words {
+			if common >= len(w)-1 || w[common] != words[0][common] {
+				ok = false
+				break
+			}
+		}
+		if !ok {
+			break
+		}
+		common++
+	}
+	tags := make([]string, len(names))
+	for i, w := range words {
+		tags[i] = strings.Trim(strings.Join(w[common:], " "), " -_.")
+		if tags[i] == "" {
+			tags[i] = names[i]
+		}
+	}
+	return tags
 }

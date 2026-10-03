@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/go-mp3"
-	"github.com/mewkiz/flac"
+	"github.com/mewkiz/flac/frame"
 )
 
 // Format of the PCM a Source produces: interleaved little-endian signed samples.
@@ -25,6 +25,7 @@ type Format struct {
 	Bits     int
 	Channels int
 	Codec    string // set when ffmpeg decodes something unusual, e.g. "dts"
+	SrcRate  int    // original rate when the server resamples (above 96 kHz)
 }
 
 func (f Format) FrameSize() int { return f.Bits / 8 * f.Channels }
@@ -51,6 +52,10 @@ func isAudio(name string) bool {
 // What the built-in decoders cannot handle goes to ffmpeg, if it is installed.
 func openFile(path string) (Source, error) {
 	s, err := openNative(path, openPrefetchRSC)
+	if err == nil && s.Format().Rate > maxRate && haveFFmpeg() { // too much for the player's Wi-Fi: resample
+		s.Close()
+		return openFFmpeg(path)
+	}
 	if err == nil {
 		return s, nil
 	}
@@ -105,14 +110,24 @@ func fileDuration(path string) float64 {
 }
 
 // ---------- FLAC ----------
+//
+// Frames are read with our own loop (frame.Parse decodes a frame and checks its CRC-16).
+// Seeking does not rely on a SEEKTABLE: many rips have none, and then the library would
+// scan the whole file (hundreds of MB over a network share) before every seek. We bisect
+// the file instead: jump to an offset, find the next valid frame, compare its sample number.
 
 type flacSource struct {
-	f      io.ReadSeekCloser
-	stream *flac.Stream
-	fmt    Format
-	shift  int // input bits -> output bits
-	pend   []byte
-	skip   int // frames to drop after a seek
+	path      string
+	f         io.ReadSeekCloser
+	br        *bufio.Reader
+	fmt       Format
+	inBits    int
+	nSamples  uint64
+	dataStart int64
+	size      int64
+	shift     int // input bits -> output bits
+	pend      []byte
+	skip      int // frames to drop after a seek
 }
 
 func openFLAC(path string, open opener) (Source, error) {
@@ -120,73 +135,173 @@ func openFLAC(path string, open opener) (Source, error) {
 	if err != nil {
 		return nil, err
 	}
-	st, err := flac.NewSeek(f)
-	if err != nil {
+	s := &flacSource{path: path, f: f}
+	if err := s.readMeta(); err != nil {
 		f.Close()
 		return nil, err
 	}
-	in := int(st.Info.BitsPerSample)
 	out := 16
-	if in > 16 {
+	if s.inBits > 16 {
 		out = 24
 	}
-	s := &flacSource{f: f, stream: st, fmt: Format{Rate: int(st.Info.SampleRate), Bits: out, Channels: int(st.Info.NChannels)}, shift: out - in}
+	s.fmt.Bits, s.shift = out, out-s.inBits
 	if s.fmt.Channels > 2 {
 		s.fmt.Channels = 2 // keep front L/R
 	}
+	if s.size, err = f.Seek(0, io.SeekEnd); err != nil {
+		f.Close()
+		return nil, err
+	}
+	if _, err := f.Seek(s.dataStart, io.SeekStart); err != nil {
+		f.Close()
+		return nil, err
+	}
+	s.br = bufio.NewReaderSize(f, 256<<10)
 	return s, nil
+}
+
+// readMeta parses "fLaC" + metadata blocks: STREAMINFO for the format, the rest is skipped.
+func (s *flacSource) readMeta() error {
+	var h [4]byte
+	if _, err := io.ReadFull(s.f, h[:]); err != nil || string(h[:]) != "fLaC" {
+		return errors.New("not a FLAC file")
+	}
+	pos := int64(4)
+	for {
+		if _, err := io.ReadFull(s.f, h[:]); err != nil {
+			return err
+		}
+		last, typ, n := h[0]&0x80 != 0, h[0]&0x7F, int64(h[1])<<16|int64(h[2])<<8|int64(h[3])
+		pos += 4
+		if typ == 0 { // STREAMINFO
+			b := make([]byte, n)
+			if _, err := io.ReadFull(s.f, b); err != nil || n < 18 {
+				return errors.New("FLAC: bad STREAMINFO")
+			}
+			x := binary.BigEndian.Uint64(b[10:18])
+			s.fmt.Rate = int(x >> 44)
+			s.fmt.Channels = int(x>>41&7) + 1
+			s.inBits = int(x>>36&31) + 1
+			s.nSamples = x & (1<<36 - 1)
+		} else if _, err := s.f.Seek(n, io.SeekCurrent); err != nil {
+			return err
+		}
+		pos += n
+		if last {
+			break
+		}
+	}
+	s.dataStart = pos
+	if s.fmt.Rate == 0 {
+		return errors.New("FLAC: no STREAMINFO")
+	}
+	return nil
 }
 
 func (s *flacSource) Format() Format { return s.fmt }
 
 func (s *flacSource) Duration() float64 {
-	if s.stream.Info.SampleRate == 0 {
-		return 0
-	}
-	return float64(s.stream.Info.NSamples) / float64(s.stream.Info.SampleRate)
+	return float64(s.nSamples) / float64(s.fmt.Rate)
 }
 
 func (s *flacSource) Read(p []byte) (int, error) {
 	fs := s.fmt.FrameSize()
 	for len(s.pend) == 0 {
-		fr, err := s.stream.ParseNext()
+		fr, err := frame.Parse(s.br)
 		if err != nil {
+			if err == io.ErrUnexpectedEOF {
+				err = io.EOF
+			}
 			return 0, err
 		}
-		n := len(fr.Subframes[0].Samples)
-		buf := make([]byte, 0, n*fs)
-		for i := s.skip; i < n; i++ {
-			for ch := 0; ch < s.fmt.Channels; ch++ {
-				v := fr.Subframes[ch].Samples[i]
-				if s.shift > 0 {
-					v <<= uint(s.shift)
-				} else if s.shift < 0 {
-					v >>= uint(-s.shift)
-				}
-				buf = appendSample(buf, v, s.fmt.Bits)
-			}
-		}
-		if s.skip >= n {
-			s.skip -= n
-		} else {
-			s.skip = 0
-		}
-		s.pend = buf
+		s.pend = s.decode(fr)
 	}
 	n := copy(p[:len(p)/fs*fs], s.pend)
 	s.pend = s.pend[n:]
 	return n, nil
 }
 
+// decode turns a parsed frame into output PCM, dropping s.skip leading samples.
+func (s *flacSource) decode(fr *frame.Frame) []byte {
+	n := len(fr.Subframes[0].Samples)
+	buf := make([]byte, 0, n*s.fmt.FrameSize())
+	for i := s.skip; i < n; i++ {
+		for ch := 0; ch < s.fmt.Channels; ch++ {
+			v := fr.Subframes[ch].Samples[i]
+			if s.shift > 0 {
+				v <<= uint(s.shift)
+			} else if s.shift < 0 {
+				v >>= uint(-s.shift)
+			}
+			buf = appendSample(buf, v, s.fmt.Bits)
+		}
+	}
+	s.skip = max(0, s.skip-n)
+	return buf
+}
+
+// probe finds the first valid frame at or after off: its file offset and first sample number.
+func probeFLAC(r io.ReaderAt, off, size int64) (int64, uint64, bool) {
+	const window = 64 << 10
+	b := make([]byte, window)
+	n, _ := r.ReadAt(b, off)
+	for i := 0; i+1 < n; i++ {
+		if b[i] != 0xFF || b[i+1]&0xFE != 0xF8 {
+			continue
+		}
+		at := off + int64(i)
+		fr, err := frame.Parse(bufio.NewReaderSize(io.NewSectionReader(r, at, size-at), 32<<10))
+		if err == nil {
+			return at, fr.SampleNumber(), true
+		}
+	}
+	return 0, 0, false
+}
+
 func (s *flacSource) Seek(sec float64) error {
 	target := uint64(sec * float64(s.fmt.Rate))
-	got, err := s.stream.Seek(target)
-	if err != nil {
+	pos := s.dataStart
+	if target > 0 {
+		pf, err := os.Open(s.path) // probes use their own handle: the main reader keeps its read-ahead
+		if err != nil {
+			return err
+		}
+		lo, hi := s.dataStart, s.size
+		for hi-lo > 256<<10 {
+			mid := lo + (hi-lo)/2
+			at, num, ok := probeFLAC(pf, mid, s.size)
+			if !ok || at >= hi {
+				hi = mid
+				continue
+			}
+			if num <= target {
+				lo = at
+			} else {
+				hi = mid
+			}
+		}
+		pf.Close()
+		pos = lo
+	}
+	if _, err := s.f.Seek(pos, io.SeekStart); err != nil {
 		return err
 	}
-	s.pend = nil
-	s.skip = int(target - got)
-	return nil
+	s.br.Reset(s.f)
+	s.pend, s.skip = nil, 0
+	for { // walk the last few frames up to the one that holds the target sample
+		fr, err := frame.Parse(s.br)
+		if err != nil {
+			return err
+		}
+		first := fr.SampleNumber()
+		if first+uint64(len(fr.Subframes[0].Samples)) > target {
+			if target > first {
+				s.skip = int(target - first)
+			}
+			s.pend = s.decode(fr)
+			return nil
+		}
+	}
 }
 
 func (s *flacSource) Close() error { return s.f.Close() }

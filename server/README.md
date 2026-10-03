@@ -18,6 +18,10 @@ everything to PCM and streams it to the player. The web remote for the phone is 
 - **CUE sheets:** an album ripped as one big file (APE / FLAC / WAV) plus a `.cue` is shown as separate
   songs; each plays from its start to the next one, gapless. Windows-1251 cue files (common in Russian
   rips) are read correctly, and a cue that says `album.wav` next to `album.ape` still finds the file.
+- **Fast seeking without seek tables:** FLAC and WavPack files are bisected for the right frame/block,
+  so a song in the middle of an 80-minute album file starts in a second instead of reading the whole file.
+- **Above 96 kHz the server resamples** (SoX resampler via ffmpeg): 176.4/352.8 kHz → 88.2 kHz,
+  192/384 kHz → 96 kHz, still 24 bit. 24/192 would be 9.2 Mbit/s — more than the player gets over Wi-Fi.
 - **Network shares are fine:** files are read 32 MB ahead in the background, so a share that
   stalls for a few seconds is not heard.
 - **One binary, no dependencies.** Builds for Windows and Linux (x86-64 and ARM).
