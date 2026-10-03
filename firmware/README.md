@@ -1,7 +1,7 @@
 # ESP32-S3 firmware
 
-`player_fw/` — the player, version 0.4. It decodes nothing: it receives PCM from the
-[server](../server), keeps about 10 seconds in PSRAM and plays it out over I2S.
+`player_fw/` — the player, version 0.5. It decodes nothing: it receives PCM from the
+[server](../server), keeps up to ~40 s of CD audio (~12 s of 24/96) in PSRAM, stored as it came (16 or 24 bit) and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
 - The ES9038Q2M board needs **32-bit I2S samples**: with 16-bit slots it only produces noise.

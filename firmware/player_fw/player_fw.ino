@@ -1,4 +1,4 @@
-// S3 Hi-Fi player firmware v0.4 — thin client of the S3 Hi-Fi server.
+// S3 Hi-Fi player firmware v0.5 — thin client of the S3 Hi-Fi server.
 // The server decodes everything to PCM; the player keeps a ~10 s buffer in PSRAM and
 // clocks it out over I2S as 32-bit samples (what the ES9038Q2M board expects).
 //
@@ -33,16 +33,31 @@ volatile bool serverKnown = false;
 #define I2S_LRCK 2
 #define I2S_DOUT 42
 
-// ---------- ring buffer in PSRAM: int32 stereo frames ----------
-const uint32_t RING_FRAMES = 1 << 19;  // 512k frames = 4 MB, ~11.9 s at 44.1 kHz
-int32_t *ring;                          // [frame*2 + ch]
-volatile uint64_t wr = 0, rd = 0;       // total frames written / read since boot
+// ---------- ring buffer in PSRAM: PCM bytes exactly as they came (stereo, 16 or 24 bit) ----------
+// Kept compact: 16-bit audio takes 4 bytes per frame, 24-bit 6. It is widened to the 32-bit samples
+// the DAC wants only on the way out. With ~7 MB that is ~40 s of CD audio, ~12 s of 24/96.
+uint8_t *ring;
+uint32_t ringBytes;                     // multiple of 12, so 4- and 6-byte frames tile it
+volatile uint64_t wr = 0, rd = 0;       // total bytes written / read since boot
 
-struct RateMark { uint64_t frame; uint32_t rate; };
+struct FmtMark { uint64_t pos; uint32_t rate; uint8_t bits; };   // from byte `pos` on, data is rate/bits
 const int MARKS = 32;
-RateMark marks[MARKS];
+FmtMark marks[MARKS];
 volatile int markHead = 0, markTail = 0;
-uint32_t writeRate = 0;                 // rate of the data the stream task writes
+uint32_t writeRate = 0;                 // format of the data the stream task writes
+uint8_t writeBits = 0;
+
+void ringWrite(const uint8_t *src, uint32_t n) {
+  uint32_t at = (uint32_t)(wr % ringBytes), first = min(n, ringBytes - at);
+  memcpy(ring + at, src, first);
+  if (n > first) memcpy(ring, src + first, n - first);
+}
+
+void ringRead(uint8_t *dst, uint32_t n) {
+  uint32_t at = (uint32_t)(rd % ringBytes), first = min(n, ringBytes - at);
+  memcpy(dst, ring + at, first);
+  if (n > first) memcpy(dst + first, ring, n - first);
+}
 
 // ---------- shared state ----------
 volatile uint32_t serverEpoch = 0;      // latest epoch from poll
@@ -51,7 +66,8 @@ volatile bool flushReq = false;
 volatile char playState = 's';          // 'p' play, 'z' pause, 's' stop
 volatile int volumePct = 70;
 volatile uint64_t played = 0;           // frames played since the last flush
-volatile uint32_t outRate = 44100;
+volatile uint32_t outRate = 44100;       // format being played now
+volatile uint8_t outBits = 16;
 volatile bool srcIdle = true;           // stream task has no connection (nothing more coming)
 
 // ---------- I2S ----------
@@ -84,6 +100,7 @@ float volumeGain(int v) {               // 100 = 0 dB, 0.4 dB per step, 0 = mute
 void i2sTask(void *) {
   const int N = 256;
   static int32_t out[N * 2];
+  static uint8_t raw[N * 6];
   bool prebuffer = true;
   for (;;) {
     if (flushReq) {
@@ -93,30 +110,35 @@ void i2sTask(void *) {
       prebuffer = true;
       flushReq = false;
     }
-    uint64_t avail = wr - rd;
-    if (prebuffer && (avail >= outRate / 2 || (srcIdle && avail > 0))) prebuffer = false;
-    if (playState == 'p' && !prebuffer && avail > 0) {
-      // sample rate change at this point of the stream?
-      if (markTail != markHead && marks[markTail].frame <= rd) {
-        uint32_t r = marks[markTail].rate;
-        markTail = (markTail + 1) % MARKS;
-        if (r != outRate) {
-          i2s_set_clk(I2S_NUM_0, r, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO);
-          outRate = r;
-        }
+    while (markTail != markHead && marks[markTail].pos <= rd) {   // format changes at this point
+      uint32_t r = marks[markTail].rate;
+      outBits = marks[markTail].bits;
+      markTail = (markTail + 1) % MARKS;
+      if (r != outRate) {
+        i2s_set_clk(I2S_NUM_0, r, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO);
+        outRate = r;
       }
-      uint32_t n = avail < N ? (uint32_t)avail : N;
-      if (markTail != markHead && marks[markTail].frame > rd && marks[markTail].frame - rd < n)
-        n = marks[markTail].frame - rd;
+    }
+    uint32_t fsz = outBits / 8 * 2;
+    uint64_t avail = wr - rd;
+    if (prebuffer && (avail >= (uint64_t)outRate * fsz / 2 || (srcIdle && avail > 0))) prebuffer = false;
+    if (playState == 'p' && !prebuffer && avail >= fsz) {
+      uint64_t lim = avail;
+      if (markTail != markHead && marks[markTail].pos - rd < lim) lim = marks[markTail].pos - rd;
+      uint32_t n = lim / fsz < (uint64_t)N ? (uint32_t)(lim / fsz) : N;
+      if (n == 0) { vTaskDelay(1); continue; }
+      ringRead(raw, n * fsz);
       float g = volumeGain(volumePct);
-      for (uint32_t i = 0; i < n; i++) {
-        uint32_t k = (uint32_t)((rd + i) % RING_FRAMES) * 2;
-        out[i * 2] = (int32_t)(ring[k] * g);
-        out[i * 2 + 1] = (int32_t)(ring[k + 1] * g);
+      const uint8_t *p = raw;
+      for (uint32_t i = 0; i < n * 2; i++) {          // widen to the 32-bit samples of the I2S bus
+        int32_t v;
+        if (fsz == 4) { v = (int32_t)((uint32_t)(p[0] | p[1] << 8) << 16); p += 2; }
+        else { v = (int32_t)((uint32_t)p[0] << 8 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 24); p += 3; }
+        out[i] = (int32_t)(v * g);
       }
       size_t w;
       i2s_write(I2S_NUM_0, out, n * 8, &w, portMAX_DELAY);
-      rd += n;
+      rd += n * fsz;
       played += n;
       if (wr == rd && !srcIdle) prebuffer = true;  // underrun: refill a little before continuing
     } else {
@@ -191,11 +213,12 @@ bool laneOpen(Lane &L, uint32_t epoch, int lane, int lanes) {
   return true;
 }
 
-void pushRate(uint32_t r) {
-  if (r == writeRate) return;
-  marks[markHead] = { wr, r };
+void pushFormat(uint32_t r, uint8_t bits) {
+  if (r == writeRate && bits == writeBits) return;
+  marks[markHead] = { wr, r, bits };
   markHead = (markHead + 1) % MARKS;
   writeRate = r;
+  writeBits = bits;
 }
 
 // The ESP32 TCP window is fixed at 5.7 KB (Arduino core), which caps one connection at ~5 Mbit/s
@@ -215,31 +238,26 @@ bool readChunkInto(Lane &c, uint32_t epoch, uint32_t seq) {
   uint32_t fsz = bits / 8 * ch;
   if (sq != seq) { Serial.printf("stream: seq %u, want %u\n", sq, seq); return false; }
   if ((bits != 16 && bits != 24) || ch < 1 || ch > 2 || len % fsz || len > 8192) { Serial.println("stream: bad format"); return false; }
-  static uint8_t buf[8192];
-  uint32_t frames = len / fsz;
-  while (RING_FRAMES - (wr - rd) < frames) {          // ring full: wait for the I2S side
+  static uint8_t buf[8192], st[16384];
+  if (!laneRead(c, buf, len, epoch)) return false;
+  const uint8_t *data = buf;
+  uint32_t n = len;
+  if (ch == 1) {                                   // the ring is always stereo: duplicate mono
+    uint32_t bs = bits / 8;
+    for (uint32_t i = 0, o = 0; i < len; i += bs, o += 2 * bs) {
+      memcpy(st + o, buf + i, bs);
+      memcpy(st + o + bs, buf + i, bs);
+    }
+    data = st;
+    n = len * 2;
+  }
+  while (ringBytes - (wr - rd) < n) {              // ring full: wait for the I2S side
     if (serverEpoch != epoch) return false;
     vTaskDelay(pdMS_TO_TICKS(5));
   }
-  if (!laneRead(c, buf, len, epoch)) return false;
-  pushRate(rate);
-  const uint8_t *p = buf;
-  for (uint32_t i = 0; i < frames; i++) {
-    int32_t l, r;
-    if (bits == 16) {
-      l = (int32_t)((uint32_t)(p[0] | p[1] << 8) << 16);
-      p += 2;
-      if (ch == 2) { r = (int32_t)((uint32_t)(p[0] | p[1] << 8) << 16); p += 2; } else r = l;
-    } else {
-      l = (int32_t)((uint32_t)p[0] << 8 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 24);
-      p += 3;
-      if (ch == 2) { r = (int32_t)((uint32_t)p[0] << 8 | (uint32_t)p[1] << 16 | (uint32_t)p[2] << 24); p += 3; } else r = l;
-    }
-    uint32_t k = (uint32_t)((wr + i) % RING_FRAMES) * 2;
-    ring[k] = l;
-    ring[k + 1] = r;
-  }
-  wr += frames;
+  pushFormat(rate, bits);
+  ringWrite(data, n);
+  wr += n;
   return true;
 }
 
@@ -269,6 +287,7 @@ void streamTask(void *) {
       flushReq = true;
       while (flushReq) vTaskDelay(1);
       writeRate = 0;
+      writeBits = 0;
       streamEpoch = e;
     }
     if (playState == 's') { vTaskDelay(pdMS_TO_TICKS(100)); continue; }
@@ -287,7 +306,7 @@ void pollTask(void *) {
       continue;
     }
     fails = 0;
-    uint32_t bufMs = outRate ? (uint32_t)((wr - rd) * 1000 / outRate) : 0;
+    uint32_t bufMs = outRate ? (uint32_t)((wr - rd) * 1000 / ((uint64_t)outRate * (outBits / 8 * 2))) : 0;
     bool rs = resyncReq;
     static uint32_t lastBytes = 0, lastMs = 0;
     uint32_t now = millis(), bytes = rxBytes;
@@ -464,8 +483,12 @@ void stopPortal() {
 void setup() {
   Serial.begin(115200);
   pinMode(0, INPUT_PULLUP);                           // BOOT button: hold 5 s to erase Wi-Fi settings
-  ring = (int32_t *)ps_malloc(RING_FRAMES * 8);
+  // as much PSRAM as we can spare, leaving room for Wi-Fi and TCP buffers
+  size_t big = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+  ringBytes = (uint32_t)min((size_t)(7u << 20), big > (768u << 10) ? big - (768u << 10) : 0) / 12 * 12;
+  ring = ringBytes ? (uint8_t *)ps_malloc(ringBytes) : nullptr;
   if (!ring) { Serial.println("no PSRAM!"); for (;;) delay(1000); }
+  Serial.printf("buffer %.1f MB: %.0f s of CD audio, %.0f s of 24/96\n", ringBytes / 1048576.0, ringBytes / 176400.0, ringBytes / 576000.0);
   i2sInit();
   Preferences prefs;
   prefs.begin("s3hifi", true);
@@ -519,7 +542,7 @@ void loop() {
   if (millis() - t > 2000) {
     t = millis();
     Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d | server %s\n", streamEpoch, playState, volumePct,
-                  outRate ? (double)(wr - rd) / outRate : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-");
+                  outRate ? (double)(wr - rd) / ((double)outRate * (outBits / 8 * 2)) : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-");
   }
   delay(portalOn ? 2 : 20);
 }
