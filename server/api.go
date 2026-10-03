@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"sync"
-	"time"
 )
 
 //go:embed web
@@ -34,6 +33,18 @@ func NewRadios(dataDir string) *Radios {
 	r := &Radios{path: filepath.Join(dataDir, "radios.json")}
 	if b, err := os.ReadFile(r.path); err == nil {
 		json.Unmarshal(b, &r.List)
+		// ids must survive a trip through JavaScript numbers (exact only up to 2^53):
+		// early versions used nanosecond timestamps, renumber those
+		changed := false
+		for i := range r.List {
+			if r.List[i].ID <= 0 || r.List[i].ID >= 1<<53 {
+				r.List[i].ID = r.nextID()
+				changed = true
+			}
+		}
+		if changed {
+			r.save()
+		}
 	} else {
 		r.List = []Station{
 			{1, "Radio Paradise", "http://stream.radioparadise.com/mp3-192"},
@@ -48,6 +59,17 @@ func NewRadios(dataDir string) *Radios {
 func (r *Radios) save() {
 	b, _ := json.MarshalIndent(r.List, "", " ")
 	os.WriteFile(r.path, b, 0644)
+}
+
+// nextID is one more than the biggest small id in use.
+func (r *Radios) nextID() int64 {
+	var m int64
+	for _, s := range r.List {
+		if s.ID > m && s.ID < 1<<53 {
+			m = s.ID
+		}
+	}
+	return m + 1
 }
 
 func (r *Radios) Get(id int64) (Station, bool) {
@@ -152,7 +174,7 @@ func (s *Server) Routes() http.Handler {
 			return
 		}
 		s.radios.mu.Lock()
-		st.ID = time.Now().UnixNano()
+		st.ID = s.radios.nextID()
 		s.radios.List = append(s.radios.List, st)
 		s.radios.save()
 		s.radios.mu.Unlock()
