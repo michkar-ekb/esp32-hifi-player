@@ -96,35 +96,64 @@ func (a *Artwork) Path(key string) string { return filepath.Join(a.dir, key+".jp
 var errNoArt = fmt.Errorf("not found")
 
 func (a *Artwork) fetch(key, entity, artist, title string) error {
-	term := strings.TrimSpace(artist + " " + title)
+	// what to ask for: "artist title"; for songs also the title alone and the first of several
+	// artists ("ЭММА М & НИКОЛАЕВ Игорь" finds nothing as it is)
+	terms := []string{strings.TrimSpace(artist + " " + title)}
+	if entity == "song" && artist != "" && title != "" {
+		if first := reArtistSep.Split(artist, 2)[0]; first != artist {
+			terms = append(terms, strings.TrimSpace(first+" "+title))
+		}
+		terms = append(terms, title)
+	}
 	var art string
-	// the Russian store knows Russian artists, the US one the rest
-	for _, country := range []string{"ru", "us"} {
-		u := "https://itunes.apple.com/search?limit=5&media=music&entity=" + entity + "&country=" + country + "&term=" + url.QueryEscape(term)
-		var res struct {
-			Results []struct {
-				ArtistName string `json:"artistName"`
-				ArtworkURL string `json:"artworkUrl100"`
-			} `json:"results"`
-		}
-		if err := a.getJSON(u, &res); err != nil {
-			return err
-		}
-		for _, r := range res.Results {
-			// iTunes always finds something; take it only if the artist is really the one asked for
-			if r.ArtworkURL != "" && sameArtist(r.ArtistName, artist, term) {
-				art = strings.Replace(r.ArtworkURL, "100x100bb", "600x600bb", 1)
-				break
+	var netErr error
+search:
+	for _, term := range terms {
+		// the Russian store knows Russian artists, the US one the rest
+		for _, country := range []string{"ru", "us"} {
+			u := "https://itunes.apple.com/search?limit=10&media=music&entity=" + entity + "&country=" + country + "&term=" + url.QueryEscape(term)
+			var res struct {
+				Results []struct {
+					ArtistName string `json:"artistName"`
+					ArtworkURL string `json:"artworkUrl100"`
+				} `json:"results"`
 			}
-		}
-		if art != "" {
-			break
+			if err := a.getJSON(u, &res); err != nil {
+				netErr = err
+				continue
+			}
+			for _, r := range res.Results {
+				// iTunes always finds something; take it only if the artist is really the one asked for
+				if r.ArtworkURL != "" && sameArtist(r.ArtistName, artist, term) {
+					art = r.ArtworkURL
+					break search
+				}
+			}
 		}
 	}
 	if art == "" {
+		if netErr != nil {
+			return netErr
+		}
 		return errNoArt
 	}
-	resp, err := a.client.Get(art)
+	// Apple's picture servers sometimes stall on https or answer 403; plain http gives the same
+	// picture (the weather station learned that too). Big one first, the small one as a last resort.
+	big := strings.Replace(art, "100x100bb", "600x600bb", 1)
+	var err error
+	for _, u := range []string{toHTTP(big), big, toHTTP(big), toHTTP(art), art} {
+		if err = a.download(u, a.Path(key)); err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+func toHTTP(u string) string { return strings.Replace(u, "https://", "http://", 1) }
+
+// download saves a JPEG picture; anything else (an error page) is refused.
+func (a *Artwork) download(u, dst string) error {
+	resp, err := a.client.Get(u)
 	if err != nil {
 		return err
 	}
@@ -132,18 +161,18 @@ func (a *Artwork) fetch(key, entity, artist, title string) error {
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("picture: HTTP %d", resp.StatusCode)
 	}
-	tmp := a.Path(key) + ".tmp"
-	f, err := os.Create(tmp)
+	b, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(f, io.LimitReader(resp.Body, 4<<20))
-	f.Close()
-	if err != nil {
-		os.Remove(tmp)
+	if len(b) < 1000 || b[0] != 0xFF || b[1] != 0xD8 {
+		return fmt.Errorf("picture: not a JPEG")
+	}
+	tmp := dst + ".tmp"
+	if err := os.WriteFile(tmp, b, 0644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, a.Path(key))
+	return os.Rename(tmp, dst)
 }
 
 func (a *Artwork) getJSON(u string, v any) error {
@@ -167,16 +196,31 @@ func words(s string) []string {
 func sameArtist(found, artist, term string) bool {
 	f := strings.Join(words(found), " ")
 	if a := strings.Join(words(artist), " "); a != "" {
-		return strings.Contains(f, a) || strings.Contains(a, f)
+		if strings.Contains(f, a) || strings.Contains(a, f) {
+			return true
+		}
+		// several artists or another order: "ЭММА М & НИКОЛАЕВ Игорь" / "Игорь Николаев, Эмма М"
+		for _, w := range words(artist) {
+			if len([]rune(w)) >= 4 && !commonWord[w] && strings.Contains(" "+f+" ", " "+w+" ") {
+				return true
+			}
+		}
+		return false
 	}
 	t := " " + strings.Join(words(term), " ") + " "
 	for _, w := range words(found) {
-		if len([]rune(w)) >= 3 && strings.Contains(t, " "+w+" ") {
+		if len([]rune(w)) >= 3 && !commonWord[w] && strings.Contains(t, " "+w+" ") {
 			return true
 		}
 	}
 	return false
 }
+
+// words that say nothing about who the artist is
+var commonWord = map[string]bool{"the": true, "and": true, "feat": true, "band": true, "group": true,
+	"orchestra": true, "группа": true, "оркестр": true, "ансамбль": true, "various": true, "artists": true}
+
+var reArtistSep = regexp.MustCompile(`(?i)\s*[&,;/]\s*|\s+(?:feat\.?|ft\.?|x|и|vs\.?)\s+`)
 
 var (
 	reBrackets = regexp.MustCompile(`[\[(\{][^\])\}]*[\])\}]`)
