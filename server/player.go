@@ -372,6 +372,28 @@ func (p *Player) State() PlayerState {
 			st.Cover = "/api/cover?path=" + urlQuery(coverDir)
 		}
 	}
+	if st.Cover == "" && p.lib.art != nil { // none of our own: look on the internet
+		key := ""
+		switch {
+		case st.Kind == "file":
+			artist, album := albumFromFolder(coverDir)
+			if album == "" { // a song right in the music folder: search by its name
+				artist, album = songFromRadio(st.Title)
+				if artist != "" {
+					key = p.lib.art.Get("song", artist, album)
+				}
+			} else {
+				key = p.lib.art.Get("album", artist, album, artQuery{"song", artist, songTitle(st.Title)})
+			}
+		case st.Kind == "radio" && st.Sub != "":
+			if artist, title := songFromRadio(st.Sub); artist != "" {
+				key = p.lib.art.Get("song", artist, title)
+			}
+		}
+		if key != "" {
+			st.Cover = "/api/art?id=" + key
+		}
+	}
 	return st
 }
 

@@ -28,6 +28,7 @@ type Library struct {
 	durCache  map[string]float64 // path|size|mtime -> seconds
 	cueCache  map[string]cueCacheEntry
 	coverSeen map[string]coverCheck
+	art       *Artwork // pictures from the internet when a folder has none
 }
 
 func NewLibrary(root, dataDir string) *Library {

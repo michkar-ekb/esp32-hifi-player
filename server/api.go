@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -109,6 +110,15 @@ func (s *Server) Routes() http.Handler {
 	})
 	m.HandleFunc("GET /api/state", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, s.player.State(), nil)
+	})
+	m.HandleFunc("GET /api/art", func(w http.ResponseWriter, r *http.Request) {
+		id := r.URL.Query().Get("id")
+		if s.lib.art == nil || len(id) != 20 || strings.Trim(id, "0123456789abcdef") != "" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Cache-Control", "max-age=86400")
+		http.ServeFile(w, r, s.lib.art.Path(id))
 	})
 	m.HandleFunc("GET /api/cover", func(w http.ResponseWriter, r *http.Request) {
 		f, err := s.lib.CoverFile(r.URL.Query().Get("path"))

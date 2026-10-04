@@ -22,6 +22,7 @@ func main() {
 	listen := flag.String("listen", ":8097", "address of the web remote and the player stream")
 	sacdInfo := flag.String("sacd-info", "", "print the track list of a SACD .iso and exit (diagnostics)")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	onlineArt := flag.Bool("online-covers", true, "look up missing album covers and radio song pictures on the internet (iTunes)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println("S3 Hi-Fi server", Version)
@@ -50,6 +51,7 @@ func main() {
 	os.MkdirAll(*data, 0755)
 
 	lib := NewLibrary(root, *data)
+	lib.art = NewArtwork(*data, *onlineArt)
 	s := &Server{lib: lib, player: NewPlayer(lib, *data), radios: NewRadios(*data)}
 	go answerDiscovery(*listen)
 	log.Printf("S3 Hi-Fi server %s: music %s, remote http://<this-pc>%s", Version, root, *listen)

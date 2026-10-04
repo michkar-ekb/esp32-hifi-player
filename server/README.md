@@ -24,6 +24,10 @@ everything to PCM and streams it to the player. The web remote for the phone is 
   192/384 kHz → 96 kHz, still 24 bit. 24/192 would be 9.2 Mbit/s — more than the player gets over Wi-Fi.
 - **Network shares are fine:** files are read 32 MB ahead in the background, so a share that
   stalls for a few seconds is not heard.
+- **Covers from the internet:** when a folder has no cover image, the server looks the album up in the
+  iTunes Search API by the folder name ("Artist - Album (year) [...]"), falling back to the song; for
+  internet radio it shows the cover of the song that is playing. A picture is taken only if the artist
+  matches, and each one is fetched once and kept in the data folder. `-online-covers=false` turns it off.
 - **Queue:** tapping a folder or an album replaces the queue with it and plays it from the start;
   tapping a single song or a radio station plays it right away without touching the queue
   ("next" then goes on with the queue); only the ＋ button adds to the queue.
@@ -108,9 +112,10 @@ go build -o s3hifi .
 | Flag | Default | |
 |---|---|---|
 | `-music` | `~/Music` | music folder |
-| `-data` | `~/.s3hifi` | queue, volume, radio list, cover cache |
+| `-data` | `~/.s3hifi` | queue, volume, radio list, cover cache, pictures from the internet |
 | `-listen` | `:8097` | address of the web remote and the player stream |
 | `-version` | | print the version |
+| `-online-covers` | `true` | look up missing album covers and radio song pictures on the internet (iTunes) |
 
 Folders are browsed as they are on disk; a `cover.jpg` / `folder.jpg` (or any image) in an album
 folder is used as the cover.
