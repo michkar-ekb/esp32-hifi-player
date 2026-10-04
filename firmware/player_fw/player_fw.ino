@@ -1,4 +1,4 @@
-// S3 Hi-Fi player firmware v0.5 — thin client of the S3 Hi-Fi server.
+// S3 Hi-Fi player firmware v0.6 — thin client of the S3 Hi-Fi server.
 // The server decodes everything to PCM; the player keeps a ~10 s buffer in PSRAM and
 // clocks it out over I2S as 32-bit samples (what the ES9038Q2M board expects).
 //
@@ -97,6 +97,8 @@ float volumeGain(int v) {               // 100 = 0 dB, 0.4 dB per step, 0 = mute
   return powf(10.0f, -(100 - v) * 0.4f / 20.0f);
 }
 
+const uint32_t PREBUFFER_MS = 2000;
+
 void i2sTask(void *) {
   const int N = 256;
   static int32_t out[N * 2];
@@ -121,7 +123,8 @@ void i2sTask(void *) {
     }
     uint32_t fsz = outBits / 8 * 2;
     uint64_t avail = wr - rd;
-    if (prebuffer && (avail >= (uint64_t)outRate * fsz / 2 || (srcIdle && avail > 0))) prebuffer = false;
+    // after a new track, seek or underrun: gather PREBUFFER_MS of sound before starting (short tracks: what there is)
+    if (prebuffer && (avail >= (uint64_t)outRate * fsz * PREBUFFER_MS / 1000 || (srcIdle && avail > 0))) prebuffer = false;
     if (playState == 'p' && !prebuffer && avail >= fsz) {
       uint64_t lim = avail;
       if (markTail != markHead && marks[markTail].pos - rd < lim) lim = marks[markTail].pos - rd;
@@ -414,15 +417,25 @@ small{color:#8f8d88}</style></head><body>)";
 
 void pageRoot() {
   String h = FPSTR(PAGE_HEAD);
-  h += "<h1>S3 Hi-Fi — настройка</h1><p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>";
+  bool home = WiFi.status() == WL_CONNECTED;          // opened at the player's address in the home network
+  h += "<h1>S3 Hi-Fi — настройка</h1>";
+  if (home) {
+    h += "<p>Плеер в сети «" + htmlEsc(cfgSsid) + "», адрес " + WiFi.localIP().toString() + ", сигнал " + WiFi.RSSI() + " dBm.<br>Сервер: " +
+         (serverKnown ? String(serverIp) + ":" + serverPort : String("ищу…")) + (cfgServer.isEmpty() ? " (найден сам)" : " (задан вручную)") + "</p>";
+  } else {
+    h += "<p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>";
+  }
   h += "<form method=post action=/save><label for=ssid>Сеть Wi-Fi</label><select id=ssid name=ssid>";
+  if (netOptions.isEmpty() && !cfgSsid.isEmpty()) h += "<option value=\"" + htmlEsc(cfgSsid) + "\" selected>" + htmlEsc(cfgSsid) + "</option>";
   h += netOptions;
   h += "<option value=\"\">другая сеть…</option></select>";
   h += "<p style=\"margin:8px 0 0\"><small><a style=\"color:#d4a95a\" href=/rescan>Обновить список</a> — "
        "телефон на пару секунд отключится от точки, потом вернётся</small></p>";
   h += "<label for=other>Имя сети, если её нет в списке</label><input id=other name=other autocomplete=off>";
-  h += "<label for=pass>Пароль</label><input id=pass name=pass type=password autocomplete=off>";
+  h += "<label for=pass>Пароль</label><input id=pass name=pass type=password autocomplete=off" +
+       String(cfgPass.isEmpty() ? "" : " placeholder=\"не менять\"") + ">";
   h += "<label for=server>Адрес сервера <small>(можно не заполнять)</small></label><input id=server name=server value=\"" + htmlEsc(cfgServer) + "\" placeholder=\"найти автоматически\">";
+  h += "<p style=\"margin:8px 0 0\"><small>Пусто — искать сервер в домашней сети. Для сервера в интернете: адрес или адрес:порт.</small></p>";
   h += "<button>Сохранить и подключиться</button></form>";
   h += "<p style=\"margin-top:24px\"><small>Плеер " + WiFi.macAddress() + ". Чтобы стереть настройки, держите кнопку BOOT 5 секунд.</small></p></body></html>";
   web.send(200, "text/html; charset=utf-8", h);
@@ -436,13 +449,18 @@ void pageSave() {
   Preferences prefs;
   prefs.begin("s3hifi", false);
   prefs.putString("ssid", ss);
-  prefs.putString("pass", web.arg("pass"));
+  String pw = web.arg("pass");
+  if (pw.isEmpty() && ss == cfgSsid) pw = cfgPass;    // left blank: keep the saved password
+  prefs.putString("pass", pw);
   String sv = web.arg("server"); sv.trim();
   prefs.putString("server", sv);
   prefs.end();
   String h = FPSTR(PAGE_HEAD);
   h += "<h1>Сохранено</h1><p>Плеер перезагружается и подключается к сети «" + htmlEsc(ss) + "». "
-       "Если пароль неверный, через минуту снова появится сеть «S3 Hi-Fi Setup».</p></body></html>";
+       "Если пароль неверный, через минуту снова появится сеть «S3 Hi-Fi Setup».</p>";
+  if (WiFi.status() == WL_CONNECTED)
+    h += "<p>Через полминуты страница снова откроется по адресу <a style=\"color:#d4a95a\" href=/>" + WiFi.localIP().toString() + "</a>.</p>";
+  h += "</body></html>";
   web.send(200, "text/html; charset=utf-8", h);
   delay(1500);
   ESP.restart();
@@ -456,6 +474,12 @@ void startPortal() {
   WiFi.softAP(AP_NAME);
   delay(100);
   dns.start(53, "*", WiFi.softAPIP());                // every name -> us: the phone shows the page by itself
+  portalOn = true;
+  Serial.printf("setup access point \"%s\" at %s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
+}
+
+// The settings page: on the setup access point, and at the player's own address in the home network.
+void startWeb() {
   web.on("/", HTTP_GET, pageRoot);
   web.on("/save", HTTP_POST, pageSave);
   web.on("/rescan", HTTP_GET, [] {
@@ -464,15 +488,16 @@ void startPortal() {
     delay(100);
     scanNetworks();
   });
-  web.onNotFound([] { web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/"); web.send(302); });
+  web.onNotFound([] {
+    if (!portalOn) { web.send(404, "text/plain", "not found"); return; }
+    web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
+    web.send(302);
+  });
   web.begin();
-  portalOn = true;
-  Serial.printf("setup access point \"%s\" at %s\n", AP_NAME, WiFi.softAPIP().toString().c_str());
 }
 
 void stopPortal() {
   if (!portalOn) return;
-  web.stop();
   dns.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
@@ -508,6 +533,7 @@ void setup() {
     if (WiFi.status() == WL_CONNECTED) Serial.printf(" OK, IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
     else { Serial.println(" failed"); startPortal(); }
   }
+  startWeb();
   xTaskCreatePinnedToCore(i2sTask, "i2s", 6144, nullptr, configMAX_PRIORITIES - 2, nullptr, 1);
   xTaskCreatePinnedToCore(streamTask, "stream", 8192, nullptr, 5, nullptr, 0);
   xTaskCreatePinnedToCore(pollTask, "poll", 6144, nullptr, 4, nullptr, 0);
@@ -517,7 +543,8 @@ void setup() {
 void loop() {
   static uint32_t t = 0, lastOk = millis(), lastTry = 0, bootDown = 0, okSince = 0;
   bool up = WiFi.status() == WL_CONNECTED;
-  if (portalOn) { dns.processNextRequest(); web.handleClient(); }
+  if (portalOn) dns.processNextRequest();
+  web.handleClient();
   if (up) {
     lastOk = millis();
     if (!okSince) okSince = millis();

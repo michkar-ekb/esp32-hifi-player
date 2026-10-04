@@ -1,6 +1,6 @@
 # ESP32-S3 firmware
 
-`player_fw/` — the player, version 0.5. It decodes nothing: it receives PCM from the
+`player_fw/` — the player, version 0.6. It decodes nothing: it receives PCM from the
 [server](../server), keeps up to ~40 s of CD audio (~12 s of 24/96) in PSRAM, stored as it came (16 or 24 bit) and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
@@ -12,7 +12,8 @@
   through a 1.4 KB buffer, and at 4+ Mbit/s that overhead made the player fall behind.
   Receive rate is reported to the server and shown in the remote (5–8 Mbit/s on a good link).
 - Three tasks: network stream and server poll on core 0, I2S output on core 1 with high priority.
-  Pause and volume act immediately; a new track or a seek drops the buffer (about 0.5 s to restart).
+  Pause and volume act immediately; a new track or a seek drops the buffer, and playback starts
+  again once 2 s of sound have arrived (so a slow link does not stutter right after a skip).
 
 ## Flash a ready build
 
@@ -33,7 +34,12 @@ No Wi-Fi settings are compiled in. On first start (or when the saved network is 
 the player opens the access point **"S3 Hi-Fi Setup"**; connect a phone to it and the setup page opens
 by itself (or go to `192.168.4.1`). Pick your network, type the password, save. The server is found
 automatically: the player broadcasts `S3HIFI?` on UDP port 8097 and the server answers. A server
-address can still be typed in on the setup page. Holding **BOOT** for 5 seconds erases the settings.
+address can still be typed in on the setup page (`host` or `host:port`), for example a server on a VPS
+on the internet. Holding **BOOT** for 5 seconds erases the settings.
+
+The same setup page also opens at the player's own address in the home network (the remote links to
+it as "настройки плеера"): it shows the network, signal and server, and lets you change them. A blank
+password keeps the saved one.
 
 ## Build
 
