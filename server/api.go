@@ -47,10 +47,16 @@ func NewRadios(dataDir string) *Radios {
 			r.save()
 		}
 	} else {
-		r.List = []Station{
+		r.List = []Station{ // all checked to play from Russia
 			{1, "Radio Paradise", "http://stream.radioparadise.com/mp3-192"},
-			{2, "SomaFM Groove Salad", "http://ice1.somafm.com/groovesalad-128-mp3"},
-			{3, "FIP", "http://icecast.radiofrance.fr/fip-midfi.mp3"},
+			{2, "NinaRadio", "http://193.221.203.177:8080/esp32"},
+			{3, "Наше радио", "http://nashe1.hostingradio.ru/nashe-128.mp3"},
+			{4, "Русское радио", "http://rusradio.hostingradio.ru/rusradio128.mp3"},
+			{5, "Русские песни", "http://listen.rusongs.ru/ru-mp3-128"},
+			{6, "Европа Плюс Light", "http://emg02.hostingradio.ru/ep-light128.mp3"},
+			{7, "Радио Jazz", "https://jfm1.hostingradio.ru:14536/sjstream.mp3"},
+			{8, "Chante France", "http://chantefrance.ice.infomaniak.ch/chantefrance-128.mp3"},
+			{9, "Generation FM Rap", "http://generationfm-rap.ice.infomaniak.ch/generationfm-rap-high.mp3"},
 		}
 		r.save()
 	}
