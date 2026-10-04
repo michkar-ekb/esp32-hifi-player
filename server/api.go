@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -112,7 +113,8 @@ func (s *Server) Routes() http.Handler {
 		w.Header().Set("Cache-Control", "max-age=86400")
 		http.ServeFile(w, r, f)
 	})
-	// {"path": "..."} or {"radio": id}; "now": true = play now, false = add to the queue
+	// {"path": "..."} or {"radio": id}; "now": true = play now, false = add to the queue.
+	// Playing a folder or an album replaces the queue; a single song or a station plays on its own.
 	m.HandleFunc("POST /api/queue", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
 			Path  *string `json:"path"`
@@ -143,7 +145,11 @@ func (s *Server) Routes() http.Handler {
 			return
 		}
 		if req.Now {
-			s.player.PlayNow(items)
+			if len(items) == 1 && (req.Radio != 0 || s.lib.isSong(*req.Path)) {
+				s.player.PlaySolo(items[0])
+			} else {
+				s.player.PlayFolder(items)
+			}
 			reply(w, map[string]int{"added": len(items)}, nil)
 		} else {
 			n := s.player.Add(items)
@@ -204,6 +210,14 @@ func (s *Server) Routes() http.Handler {
 		rssi, _ := strconv.Atoi(q.Get("rssi"))
 		kbps, _ := strconv.Atoi(q.Get("kbps"))
 		epoch, state, vol := s.player.Poll(uint32(e), played, buf, rssi, kbps, q.Get("resync") == "1")
+		// the player's own settings page, linked from the remote; only reachable when it is in the same network
+		if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+			if ip := net.ParseIP(host); ip != nil && ip.IsPrivate() {
+				s.player.SetSetupURL("http://" + host + "/")
+			} else {
+				s.player.SetSetupURL("")
+			}
+		}
 		w.Header().Set("Content-Type", "text/plain")
 		w.Write([]byte(strconv.FormatUint(uint64(epoch), 10) + " " + state + " " + strconv.Itoa(vol) + "\n"))
 	})

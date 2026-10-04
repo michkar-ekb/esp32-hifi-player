@@ -24,6 +24,13 @@ everything to PCM and streams it to the player. The web remote for the phone is 
   192/384 kHz → 96 kHz, still 24 bit. 24/192 would be 9.2 Mbit/s — more than the player gets over Wi-Fi.
 - **Network shares are fine:** files are read 32 MB ahead in the background, so a share that
   stalls for a few seconds is not heard.
+- **Queue:** tapping a folder or an album replaces the queue with it and plays it from the start;
+  tapping a single song or a radio station plays it right away without touching the queue
+  ("next" then goes on with the queue); only the ＋ button adds to the queue.
+- **Over the internet:** the server can run on a VPS and the player can reach it through a phone's
+  mobile hotspot (set the server address on the player's setup page). Tested: CD-quality FLAC plays
+  without dropouts over 4G; DSD and 24/96 need more than the player gets there (~2 Mbit/s at 40–70 ms).
+  The web remote has no password, so do not leave it open to the whole internet.
 - **One binary, no dependencies.** Builds for Windows and Linux (x86-64 and ARM).
   So far it has been run on Linux only.
 

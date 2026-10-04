@@ -36,6 +36,7 @@
   .row .name b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row .name small { color: var(--muted); }
   .row.current .name b { color: var(--accent); }
+  #pStatus a { color: var(--accent); }
   .row .err { color: var(--danger); }
   .act { width: var(--tap); height: var(--tap); border-radius: 50%; font-size: 20px; flex: none; color: var(--accent); }
   .act.plain { color: var(--muted); }
@@ -256,7 +257,7 @@ $("#vUp").onclick = () => setVol(Math.min(100, +vol.value + 5));
 
 function paint() {
   const s = st; if (!s) return;
-  const active = s.cur >= 0 && s.queue && s.queue.length;
+  const active = s.solo || (s.cur >= 0 && s.queue && s.queue.length);
   $("#now").hidden = !active;
   if (!active) return;
   const icon = s.state === "play" ? "⏸" : "▶";
@@ -275,7 +276,8 @@ function paint() {
   if (document.activeElement !== vol) vol.value = s.volume;
   const rx = s.kbps ? ` · приём ${(s.kbps / 1000).toFixed(1)} Мбит/с` : "";
   const buf = s.bufferMs ? ` · буфер ${(s.bufferMs / 1000).toFixed(1)} с${rx} · Wi-Fi ${s.rssi} dBm` : "";
-  $("#pStatus").innerHTML = `<span class="dot ${s.online ? "on" : ""}"></span>${s.online ? "Плеер на связи" + buf : "Плеер не на связи"}`;
+  const setup = s.online && s.setupUrl ? ` · <a href="${esc(s.setupUrl)}" target="_blank" rel="noopener">настройки плеера</a>` : "";
+  $("#pStatus").innerHTML = `<span class="dot ${s.online ? "on" : ""}"></span>${s.online ? "Плеер на связи" + buf + setup : "Плеер не на связи"}`;
 }
 
 async function refresh() {

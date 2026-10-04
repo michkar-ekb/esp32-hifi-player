@@ -193,6 +193,25 @@ func (l *Library) duration(p string, st os.FileInfo) float64 {
 }
 
 // Collect returns queue items for a file, or for every track inside a folder (recursively, in order).
+// isSong: the path is one song (a file, or one song of a CUE sheet or a SACD image), not a folder or an album.
+func (l *Library) isSong(rel string) bool {
+	if _, num, ok := splitCuePath(rel); ok {
+		return num > 0
+	}
+	if _, num, ok := splitISOPath(rel); ok {
+		return num > 0
+	}
+	if ext := strings.ToLower(filepath.Ext(rel)); ext == ".cue" || ext == ".iso" {
+		return false
+	}
+	full, err := l.Abs(rel)
+	if err != nil {
+		return false
+	}
+	st, err := os.Stat(full)
+	return err == nil && !st.IsDir()
+}
+
 func (l *Library) Collect(rel string) ([]Item, error) {
 	if cue, num, ok := splitCuePath(rel); ok {
 		return l.cueItems(cue, num)

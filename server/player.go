@@ -64,6 +64,13 @@ type Player struct {
 	rssi     int
 	kbps     int
 
+	// a song or a station started on its own plays outside the queue; the queue waits here
+	solo     bool
+	saved    []Item
+	savedCur int
+
+	setupURL string // the player's settings page, if it is reachable from here
+
 	radioTitle string
 	statePath  string
 	saveTimer  *time.Timer
@@ -90,11 +97,15 @@ func (p *Player) saveLocked() {
 	if p.saveTimer != nil {
 		p.saveTimer.Stop()
 	}
+	q, cur := p.Queue, p.Cur
+	if p.solo {
+		q, cur = p.saved, p.savedCur
+	}
 	b, _ := json.MarshalIndent(struct {
 		Queue  []Item `json:"queue"`
 		Cur    int    `json:"cur"`
 		Volume int    `json:"volume"`
-	}{p.Queue, p.Cur, p.Volume}, "", " ")
+	}{q, cur, p.Volume}, "", " ")
 	p.saveTimer = time.AfterFunc(500*time.Millisecond, func() {
 		tmp := p.statePath + ".tmp"
 		if os.WriteFile(tmp, b, 0644) == nil {
@@ -151,23 +162,43 @@ func (p *Player) positionLocked() (int, float64) {
 
 // ---------- commands from the web remote ----------
 
-func (p *Player) PlayNow(items []Item) {
+// PlayFolder replaces the queue with a folder or an album and plays it from the start.
+func (p *Player) PlayFolder(items []Item) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(items) == 0 {
 		return
 	}
-	at := len(p.Queue)
-	if p.Cur >= 0 {
-		at = p.Cur + 1
+	p.solo, p.saved = false, nil
+	p.Queue = items
+	p.startLocked(0, 0)
+}
+
+// PlaySolo plays one song or station right away without putting it into the queue.
+func (p *Player) PlaySolo(it Item) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if !p.solo {
+		idx, _ := p.positionLocked()
+		p.saved, p.savedCur, p.solo = p.Queue, idx, true
 	}
-	p.Queue = append(p.Queue[:at], append(items, p.Queue[at:]...)...)
-	p.startLocked(at, 0)
+	p.Queue = []Item{it}
+	p.startLocked(0, 0)
+}
+
+// endSoloLocked puts the queue back in place of the solo song (playback is up to the caller).
+func (p *Player) endSoloLocked() {
+	p.Queue, p.Cur, p.solo, p.saved = p.saved, min(p.savedCur, len(p.saved)-1), false, nil
 }
 
 func (p *Player) Add(items []Item) int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.solo { // the solo song keeps playing; the queue grows behind it
+		p.saved = append(p.saved, items...)
+		p.saveLocked()
+		return len(p.saved)
+	}
 	p.Queue = append(p.Queue, items...)
 	// the producer may already have finished the old queue: let it continue
 	if p.srcDone && p.state != "stop" {
@@ -183,6 +214,41 @@ func (p *Player) Command(cmd string, arg float64) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	idx, pos := p.positionLocked()
+	if p.solo {
+		switch cmd {
+		case "next": // on to the queue
+			next := p.savedCur + 1
+			p.endSoloLocked()
+			if next < len(p.Queue) {
+				p.startLocked(next, 0)
+			} else {
+				p.stopLocked()
+			}
+			return nil
+		case "prev":
+			p.startLocked(0, 0)
+			return nil
+		case "jump":
+			p.endSoloLocked()
+			p.startLocked(int(arg), 0)
+			return nil
+		case "remove":
+			i := int(arg)
+			if i < 0 || i >= len(p.saved) {
+				return errors.New("bad index")
+			}
+			p.saved = append(p.saved[:i], p.saved[i+1:]...)
+			if i < p.savedCur {
+				p.savedCur--
+			}
+			p.saveLocked()
+			return nil
+		case "clear":
+			p.saved, p.savedCur = nil, -1
+			p.saveLocked()
+			return nil
+		}
+	}
 	switch cmd {
 	case "pause":
 		if p.state == "play" {
@@ -295,6 +361,8 @@ type PlayerState struct {
 	RSSI     int     `json:"rssi"`
 	Kbps     int     `json:"kbps"`
 	Format   string  `json:"format"`
+	SetupURL string  `json:"setupUrl,omitempty"`
+	Solo     bool    `json:"solo"` // playing a song outside the queue; Queue is the waiting queue
 }
 
 func (p *Player) State() PlayerState {
@@ -313,7 +381,7 @@ func (p *Player) stateLocked() (PlayerState, string) {
 	coverDir := ""
 	idx, pos := p.positionLocked()
 	st := PlayerState{State: p.state, Cur: idx, Pos: pos, Volume: p.Volume, Queue: p.Queue,
-		Online: time.Since(p.lastPoll) < 3*time.Second, BufferMs: p.bufMs, RSSI: p.rssi, Kbps: p.kbps}
+		Online: time.Since(p.lastPoll) < 3*time.Second, BufferMs: p.bufMs, RSSI: p.rssi, Kbps: p.kbps, SetupURL: p.setupURL}
 	if idx >= 0 && idx < len(p.Queue) {
 		it := p.Queue[idx]
 		st.Title, st.Dur, st.Kind = it.Title, it.Dur, it.Kind
@@ -332,10 +400,20 @@ func (p *Player) stateLocked() (PlayerState, string) {
 		}
 	}
 	st.Queue = append([]Item(nil), p.Queue...) // copy: encoded after the lock is released
+	if p.solo {
+		st.Solo, st.Cur = true, -1
+		st.Queue = append([]Item(nil), p.saved...)
+	}
 	return st, coverDir
 }
 
 // ---------- ESP side ----------
+
+func (p *Player) SetSetupURL(u string) {
+	p.mu.Lock()
+	p.setupURL = u
+	p.mu.Unlock()
+}
 
 // Poll is called by the ESP a few times per second; returns epoch, state and volume.
 func (p *Player) Poll(epoch uint32, played uint64, bufMs, rssi, kbps int, resync bool) (uint32, string, int) {
