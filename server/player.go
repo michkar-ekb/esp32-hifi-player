@@ -84,6 +84,13 @@ func NewPlayer(lib *Library, dataDir string) *Player {
 		if p.Cur >= len(p.Queue) {
 			p.Cur = len(p.Queue) - 1
 		}
+		var s struct {
+			Solo *Item `json:"solo"`
+		}
+		if json.Unmarshal(b, &s) == nil && s.Solo != nil { // a song or a station played outside the queue
+			p.saved, p.savedCur, p.solo = p.Queue, p.Cur, true
+			p.Queue, p.Cur = []Item{*s.Solo}, 0
+		}
 	}
 	go func() { // wake streams regularly so they notice closed connections
 		for range time.Tick(time.Second) {
@@ -98,14 +105,20 @@ func (p *Player) saveLocked() {
 		p.saveTimer.Stop()
 	}
 	q, cur := p.Queue, p.Cur
+	var solo *Item
 	if p.solo {
 		q, cur = p.saved, p.savedCur
+		if len(p.Queue) > 0 {
+			it := p.Queue[0]
+			solo = &it
+		}
 	}
 	b, _ := json.MarshalIndent(struct {
 		Queue  []Item `json:"queue"`
 		Cur    int    `json:"cur"`
 		Volume int    `json:"volume"`
-	}{q, cur, p.Volume}, "", " ")
+		Solo   *Item  `json:"solo,omitempty"`
+	}{q, cur, p.Volume, solo}, "", " ")
 	p.saveTimer = time.AfterFunc(500*time.Millisecond, func() {
 		tmp := p.statePath + ".tmp"
 		if os.WriteFile(tmp, b, 0644) == nil {

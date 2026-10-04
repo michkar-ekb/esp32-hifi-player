@@ -199,9 +199,18 @@ func sameArtist(found, artist, term string) bool {
 		if strings.Contains(f, a) || strings.Contains(a, f) {
 			return true
 		}
+		// the same name in another alphabet: "СЕРЕБРО" / "SEREBRO"
+		if sf, sa := skeleton(f), skeleton(a); len(sa) >= 3 && len(sf) >= 3 && (strings.Contains(sf, sa) || strings.Contains(sa, sf)) {
+			return true
+		}
 		// several artists or another order: "ЭММА М & НИКОЛАЕВ Игорь" / "Игорь Николаев, Эмма М"
+		fs := " " + f + " "
+		fk := skeleton(f)
 		for _, w := range words(artist) {
-			if len([]rune(w)) >= 4 && !commonWord[w] && strings.Contains(" "+f+" ", " "+w+" ") {
+			if len([]rune(w)) < 4 || commonWord[w] {
+				continue
+			}
+			if strings.Contains(fs, " "+w+" ") || (len(skeleton(w)) >= 3 && strings.Contains(fk, skeleton(w))) {
 				return true
 			}
 		}
@@ -214,6 +223,31 @@ func sameArtist(found, artist, term string) bool {
 		}
 	}
 	return false
+}
+
+var translit = map[rune]string{'а': "a", 'б': "b", 'в': "v", 'г': "g", 'д': "d", 'е': "e", 'ё': "e", 'ж': "zh",
+	'з': "z", 'и': "i", 'й': "y", 'к': "k", 'л': "l", 'м': "m", 'н': "n", 'о': "o", 'п': "p", 'р': "r", 'с': "s",
+	'т': "t", 'у': "u", 'ф': "f", 'х': "h", 'ц': "ts", 'ч': "ch", 'ш': "sh", 'щ': "sch", 'ъ': "", 'ы': "y", 'ь': "",
+	'э': "e", 'ю': "yu", 'я': "ya"}
+
+// skeleton reduces a name to its Latin consonants, so spellings in either alphabet meet:
+// "серебро", "SEREBRO" -> "srbr"; "Кузьмин", "Kuzmin" -> "kzmn".
+func skeleton(s string) string {
+	var lat strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if l, ok := translit[r]; ok {
+			lat.WriteString(l)
+		} else if r < 128 && unicode.IsLetter(r) {
+			lat.WriteRune(r)
+		}
+	}
+	var out strings.Builder
+	for _, r := range lat.String() {
+		if !strings.ContainsRune("aeiouyhjw", r) {
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
 }
 
 // words that say nothing about who the artist is
@@ -252,10 +286,18 @@ var reTrackNo = regexp.MustCompile(`^\s*\d{1,3}[\s.\-_)]+`)
 // songTitle strips the track number: "02 - Wenn das Liebe ist" -> "Wenn das Liebe ist".
 func songTitle(t string) string { return strings.TrimSpace(reTrackNo.ReplaceAllString(t, "")) }
 
-// songFromRadio splits the stream title "Artist - Title".
+// songFromRadio splits the stream title "Artist - Title". Titles taken from videos carry extras:
+// `Nina Chuba ft. RTO Ehrenfeld - "Wildberry Lillet" | ZDF Magazin Royale` -> "Wildberry Lillet".
 func songFromRadio(t string) (artist, title string) {
-	if i := strings.Index(t, " - "); i > 0 {
-		return strings.TrimSpace(t[:i]), strings.TrimSpace(reBrackets.ReplaceAllString(t[i+3:], " "))
+	i := strings.Index(t, " - ")
+	if i <= 0 {
+		return "", ""
 	}
-	return "", ""
+	artist, title = strings.TrimSpace(t[:i]), t[i+3:]
+	if j := strings.IndexAny(title, "|•"); j > 0 {
+		title = title[:j]
+	}
+	title = reBrackets.ReplaceAllString(title, " ")
+	title = strings.Trim(strings.TrimSpace(title), `"'«»“”„`)
+	return artist, strings.TrimSpace(title)
 }
