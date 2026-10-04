@@ -6,8 +6,9 @@ A network Hi-Fi player for your own music library (FLAC, WAV, MP3, DSD) and inte
 the player, built on an ESP32-S3, receives a ready-to-play stream over Wi-Fi and feeds it
 to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
-> **Status:** work in progress, but it plays. The server, the player firmware v0.1 and the case
-> are done; the first bench build plays FLAC and radio. Next: a display and a Windows installer.
+> **Status:** in daily use at home. Server 0.5, player firmware 0.6, case and wiring are done.
+> No display on purpose: everything is on the phone, cover art included. Next: more connections
+> for listening over mobile internet (in a car), and a Windows installer.
 
 <p>
   <img src="photos/player_case.jpg" width="49%" alt="Player in its case on the stereo">
