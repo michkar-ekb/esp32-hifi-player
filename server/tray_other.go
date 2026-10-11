@@ -8,6 +8,6 @@ import (
 )
 
 // runTray: the notification-area icon exists only on Windows; elsewhere -tray just runs the server.
-func runTray(listen, music, data string, h http.Handler) {
+func runTray(listen string, lib *Library, data string, h http.Handler, askFolder bool) {
 	log.Fatal(http.ListenAndServe(listen, h))
 }

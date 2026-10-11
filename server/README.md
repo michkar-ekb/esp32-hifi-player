@@ -90,11 +90,19 @@ radio works and the folders appear once the share is up.
 
 ### Windows
 
-Run `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest). It asks for the install folder and the music
-folder, starts the server with Windows (`-tray`: no console window, an icon in the notification area with
-"Open remote", "Music folder", "Log" and "Exit"), and allows the program in the firewall for private
-networks. To change the music folder, run the installer again. Uninstall from "Apps"; settings, queue and
-covers stay in `%USERPROFILE%\.s3hifi`, the log is `%USERPROFILE%\.s3hifi\s3hifi.log`.
+Run `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest). Windows SmartScreen may say "Windows protected
+your PC": the installer is not signed with a paid certificate; click "More info" → "Run anyway" (the code
+is here, checksums are in `SHA256SUMS`). The installer puts the program into Program Files, starts it with
+Windows as `s3hifi.exe -tray` and allows it in the firewall for private networks.
+
+With `-tray` there is no console window, the log goes to `%USERPROFILE%\.s3hifi\s3hifi.log`, and an icon
+in the notification area opens a menu on left or right click: "Open remote", "Music: …", "Choose music
+folder…", "Log", "Exit". If no music folder has been chosen yet (and `-music` is not given), the folder
+dialog opens on start. It sees mapped network drives and `\\server\share`; a folder on a mapped drive is
+saved as its network path (the server may start before Windows reconnects the drive letter). The choice
+is kept in `<data>/music-folder.txt` and the folder can be changed while the server runs.
+
+Uninstall from Settings → Apps; the data folder `%USERPROFILE%\.s3hifi` stays.
 
 Without installing: `s3hifi-windows-amd64.exe -music "D:\Music"` in a console (add `-tray` for the icon).
 
@@ -112,9 +120,10 @@ go build -o s3hifi .
 
 | Flag | Default | |
 |---|---|---|
-| `-music` | `~/Music` | music folder |
+| `-music` | `~/Music` | music folder (if not given: the folder chosen from the tray menu, else `~/Music`) |
 | `-data` | `~/.s3hifi` | queue, volume, radio list, cover cache, pictures from the internet |
 | `-listen` | `:8097` | address of the web remote and the player stream |
+| `-tray` | `false` | Windows: no console, an icon in the notification area, log to `<data>/s3hifi.log` |
 | `-version` | | print the version |
 | `-online-covers` | `true` | look up missing album covers and radio song pictures on the internet (iTunes) |
 

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Version is set at build time: go build -ldflags "-X main.Version=0.4.0"
@@ -41,6 +42,20 @@ func main() {
 		return
 	}
 
+	os.MkdirAll(*data, 0755)
+	if *tray {
+		logToFile(filepath.Join(*data, "s3hifi.log"))
+	}
+	// the music folder: -music if given, else the one chosen earlier from the tray menu, else ~/Music
+	musicSet := false
+	flag.Visit(func(f *flag.Flag) { musicSet = musicSet || f.Name == "music" })
+	chosen := ""
+	if !musicSet {
+		chosen = savedMusicDir(*data)
+		if chosen != "" {
+			*music = chosen
+		}
+	}
 	root, err := filepath.Abs(*music)
 	if err != nil {
 		log.Fatal(err)
@@ -49,10 +64,6 @@ func main() {
 		// not fatal: the folder may be a network share that comes up later; radio works meanwhile
 		log.Printf("music folder %q is not available yet: %v", root, err)
 	}
-	os.MkdirAll(*data, 0755)
-	if *tray {
-		logToFile(filepath.Join(*data, "s3hifi.log"))
-	}
 
 	lib := NewLibrary(root, *data)
 	lib.art = NewArtwork(*data, *onlineArt)
@@ -60,10 +71,24 @@ func main() {
 	go answerDiscovery(*listen)
 	log.Printf("S3 Hi-Fi server %s: music %s, remote http://<this-pc>%s", Version, root, *listen)
 	if *tray {
-		runTray(*listen, root, *data, s.Routes())
+		// no folder chosen yet and none given: the tray asks for one right away
+		runTray(*listen, lib, *data, s.Routes(), !musicSet && chosen == "")
 		return
 	}
 	log.Fatal(http.ListenAndServe(*listen, s.Routes()))
+}
+
+// savedMusicDir is the music folder chosen from the tray menu (<data>/music-folder.txt), or "".
+func savedMusicDir(data string) string {
+	b, err := os.ReadFile(filepath.Join(data, "music-folder.txt"))
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(b))
+}
+
+func saveMusicDir(data, dir string) error {
+	return os.WriteFile(filepath.Join(data, "music-folder.txt"), []byte(dir+"\n"), 0644)
 }
 
 // logToFile sends the log to a file (kept small: started anew when it grows past 5 MB).

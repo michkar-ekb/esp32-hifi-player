@@ -1,6 +1,7 @@
 ; S3 Hi-Fi server — Windows installer (NSIS 3, build: makensis -DVERSION=x.y.z s3hifi.nsi)
-; Puts s3hifi.exe into Program Files, asks for the music folder, starts the server with Windows
-; (icon in the notification area), opens the firewall for the player and the phone remote.
+; Puts s3hifi.exe into Program Files, starts the server with Windows (icon in the notification area),
+; opens the firewall for the player and the phone remote. The music folder is chosen in the server
+; itself (it runs as the user and sees mapped network drives, which this elevated installer does not).
 
 Unicode true
 !include "MUI2.nsh"
@@ -21,30 +22,19 @@ InstallDirRegKey HKLM "${REGKEY}" "InstallDir"
 RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
-Var MusicDir
-
 !define MUI_ICON   "..\server\winres\s3hifi.ico"
 !define MUI_UNICON "..\server\winres\s3hifi.ico"
 !define MUI_ABORTWARNING
 
-!define MUI_WELCOMEPAGE_TEXT "Программа установит сервер ${APP}: он хранит музыку, раздаёт её плееру на ESP32-S3 и показывает пульт для телефона.$\r$\n$\r$\nСервер запускается вместе с Windows и живёт значком в трее (рядом с часами). Выключить — правой кнопкой по значку → «Выход»."
+!define MUI_WELCOMEPAGE_TEXT "Программа установит сервер ${APP}: он хранит музыку, раздаёт её плееру на ESP32-S3 и показывает пульт для телефона.$\r$\n$\r$\nСервер запускается вместе с Windows и живёт значком в трее (рядом с часами). Меню значка — по щелчку: пульт, выбор папки с музыкой, выход.$\r$\n$\r$\nПапку с музыкой сервер спросит сам при первом запуске."
 !insertmacro MUI_PAGE_WELCOME
-!insertmacro MUI_PAGE_DIRECTORY
-
-; second directory page: the music folder
-!define MUI_PAGE_HEADER_TEXT "Папка с музыкой"
-!define MUI_PAGE_HEADER_SUBTEXT "Где лежат ваши альбомы (FLAC, MP3, DSD, APE, CUE…)."
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Сервер покажет в пульте все папки и альбомы из этой папки. Сетевой диск тоже подойдёт. Поменять потом — запустите установщик ещё раз."
-!define MUI_DIRECTORYPAGE_TEXT_DESTINATION "Папка с музыкой"
-!define MUI_DIRECTORYPAGE_VARIABLE $MusicDir
-!define MUI_DIRECTORYPAGE_VERIFYONEXIT
 !insertmacro MUI_PAGE_DIRECTORY
 
 !insertmacro MUI_PAGE_INSTFILES
 
 !define MUI_FINISHPAGE_TEXT "Сервер установлен.$\r$\n$\r$\nПульт: http://<адрес этого компьютера>:8097 — откройте с телефона в той же сети. Плеер найдёт сервер сам.$\r$\n$\r$\nДля DTS, APE, WavPack, ALAC положите ffmpeg.exe и ffprobe.exe в папку программы."
 !define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_TEXT "Запустить сервер и открыть пульт"
+!define MUI_FINISHPAGE_RUN_TEXT "Запустить сервер (он спросит папку с музыкой)"
 !define MUI_FINISHPAGE_RUN_FUNCTION RunNow
 !insertmacro MUI_PAGE_FINISH
 
@@ -62,31 +52,15 @@ VIAddVersionKey /LANG=${LANG_RUSSIAN} "LegalCopyright" "GPL-3.0, github.com/mich
 
 Function .onInit
   SetRegView 64
-  ReadRegStr $MusicDir HKLM "${REGKEY}" "MusicDir"
-  ${If} $MusicDir == ""
-    StrCpy $MusicDir "$PROFILE\Music"
-  ${EndIf}
 FunctionEnd
 
 Function un.onInit
   SetRegView 64
 FunctionEnd
 
-; command-line arguments for the server; a root like C:\ must not end with \ before the quote
-Function MusicArg
-  StrCpy $0 $MusicDir 1 -1
-  ${If} $0 == "\"
-    StrCpy $0 "$MusicDir."
-  ${Else}
-    StrCpy $0 $MusicDir
-  ${EndIf}
-FunctionEnd
-
 Function RunNow
   ; through explorer, so the server runs as the normal user, not elevated like the installer
   Exec '"$WINDIR\explorer.exe" "$SMPROGRAMS\${APP}\${APP}.lnk"'
-  Sleep 2000
-  ExecShell "open" "http://localhost:8097/"
 FunctionEnd
 
 Section "Install"
@@ -99,12 +73,11 @@ Section "Install"
   File "..\LICENSE"
   WriteUninstaller "$INSTDIR\uninstall.exe"
 
-  Call MusicArg
   CreateDirectory "$SMPROGRAMS\${APP}"
-  CreateShortCut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${EXE}" '-tray -music "$0"' "$INSTDIR\${EXE}" 0
+  CreateShortCut "$SMPROGRAMS\${APP}\${APP}.lnk" "$INSTDIR\${EXE}" '-tray' "$INSTDIR\${EXE}" 0
   CreateShortCut "$SMPROGRAMS\${APP}\Удалить ${APP}.lnk" "$INSTDIR\uninstall.exe"
   ClearErrors
-  CreateShortCut "$SMSTARTUP\${APP}.lnk" "$INSTDIR\${EXE}" '-tray -music "$0"' "$INSTDIR\${EXE}" 0
+  CreateShortCut "$SMSTARTUP\${APP}.lnk" "$INSTDIR\${EXE}" '-tray' "$INSTDIR\${EXE}" 0
   ${If} ${Errors}
     ; some antiviruses (e.g. 360 Total Security) silently block new autostart entries
     MessageBox MB_ICONEXCLAMATION|MB_OK "Не удалось добавить сервер в автозагрузку — похоже, это заблокировал антивирус.$\r$\n$\r$\nСервер установлен и работает, но с Windows сам не запустится. Разрешите это в антивирусе и запустите установщик ещё раз, либо запускайте сервер из меню «Пуск» → ${APP}." /SD IDOK
@@ -115,7 +88,6 @@ Section "Install"
   nsExec::Exec 'netsh advfirewall firewall add rule name="${APP}" dir=in action=allow program="$INSTDIR\${EXE}" enable=yes profile=private,domain'
 
   WriteRegStr HKLM "${REGKEY}" "InstallDir" "$INSTDIR"
-  WriteRegStr HKLM "${REGKEY}" "MusicDir" "$MusicDir"
   WriteRegStr HKLM "${UNINSTKEY}" "DisplayName" "${APP} server"
   WriteRegStr HKLM "${UNINSTKEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKLM "${UNINSTKEY}" "Publisher" "michkar-ekb"
@@ -139,5 +111,5 @@ Section "Uninstall"
   RMDir "$INSTDIR"
   DeleteRegKey HKLM "${REGKEY}"
   DeleteRegKey HKLM "${UNINSTKEY}"
-  ; settings, queue and cover cache stay in %USERPROFILE%\.s3hifi
+  ; the music folder, settings, queue and cover cache stay in %USERPROFILE%\.s3hifi
 SectionEnd

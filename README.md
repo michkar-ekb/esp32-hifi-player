@@ -23,12 +23,31 @@ The bench build: in the case on the stereo, and inside.
 
 1. **Server** on a Linux PC that holds the music:
    `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music`
-   **Windows:** the installer `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) asks for the music folder;
-   the server starts with Windows and lives as a tray icon (right click → Exit).
+   **Windows:** the installer `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), see
+   [Server on Windows](#server-on-windows) below.
 2. **Player**: download `s3hifi-flash-windows.zip` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack, connect the board by USB
    and run `flash.bat` — it only asks for the COM port (Linux/Mac: `esptool`, see [firmware](firmware)). Then
    connect a phone to the "S3 Hi-Fi Setup" Wi-Fi and pick your network. The player finds the server by itself.
 3. **Remote**: open `http://<server>:8097` on the phone.
+
+### Server on Windows
+
+1. Download `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) and run it.
+2. **Windows may show a blue "Windows protected your PC" window** (or an antivirus warning). This happens
+   with any program that has no paid code-signing certificate — it is not a virus. Click "More info" →
+   "Run anyway". All the source code is open in this repository, and the file checksums are in
+   `SHA256SUMS` next to the release. The same window may appear for `flash.bat`.
+3. The installer puts the server into Program Files, adds it to startup and allows it in the firewall
+   for private networks. If an antivirus blocks the startup entry, the installer says so.
+4. **On the first start the server asks for the music folder.** Any folder works: on this PC, a mapped
+   network drive (e.g. `M:`) or `\\computer\share` — the path can be typed into the dialog. A folder on a
+   mapped drive is remembered as its network path, so the music is found after a reboot even before
+   Windows reconnects the drive letter.
+5. The server lives as a record icon in the notification area. **Left or right click opens the menu:**
+   "Open remote", "Music: …" (open the folder), "Choose music folder…", "Log", "Exit".
+6. Uninstall from Settings → Apps. Settings and the chosen folder stay in `%USERPROFILE%\.s3hifi`.
+
+For DTS, APE, WavPack and ALAC put `ffmpeg.exe` and `ffprobe.exe` into the program folder (any LGPL build).
 
 ## How it works
 

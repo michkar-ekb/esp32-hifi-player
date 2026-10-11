@@ -21,7 +21,8 @@ import (
 
 // Library is the music folder tree. Paths given to the web remote are relative to Root.
 type Library struct {
-	Root      string
+	Root      string // set once at start; later changes go through SetRoot
+	rootMu    sync.RWMutex
 	coverDir  string
 	mu        sync.Mutex
 	resizeMu  sync.Mutex
@@ -39,11 +40,26 @@ func NewLibrary(root, dataDir string) *Library {
 
 var errOutside = errors.New("path is outside the music folder")
 
+// root is the current music folder (it can be changed from the tray menu while the server runs).
+func (l *Library) root() string {
+	l.rootMu.RLock()
+	defer l.rootMu.RUnlock()
+	return l.Root
+}
+
+// SetRoot switches the library to another music folder.
+func (l *Library) SetRoot(dir string) {
+	l.rootMu.Lock()
+	l.Root = dir
+	l.rootMu.Unlock()
+}
+
 // Abs turns a relative path from the remote into a real path inside Root.
 func (l *Library) Abs(rel string) (string, error) {
+	root := l.root()
 	rel = filepath.Clean("/" + filepath.FromSlash(rel))
-	full := filepath.Join(l.Root, rel)
-	r, err := filepath.Rel(l.Root, full)
+	full := filepath.Join(root, rel)
+	r, err := filepath.Rel(root, full)
 	if err != nil || strings.HasPrefix(r, "..") {
 		return "", errOutside
 	}
@@ -51,7 +67,7 @@ func (l *Library) Abs(rel string) (string, error) {
 }
 
 func (l *Library) relOf(full string) string {
-	r, _ := filepath.Rel(l.Root, full)
+	r, _ := filepath.Rel(l.root(), full)
 	if r == "." {
 		return ""
 	}
