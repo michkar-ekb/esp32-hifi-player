@@ -17,7 +17,12 @@
 
 ## Flash a ready build
 
-Download `s3hifi-player-esp32s3-n16r8.bin` from
+**Windows, the easy way:** download `s3hifi-flash-windows.zip` from
+[Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack it, connect the board
+and run `flash.bat`. It lists the COM ports and asks for one (Enter if there is only one); `esptool.exe`
+(official Espressif build) and the firmware are inside. Wi-Fi and server settings on the board are kept.
+
+**Any system:** Download `s3hifi-player-esp32s3-n16r8.bin` from
 [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest): bootloader, partitions
 and firmware in one image, written at address 0. Connect the devkit by USB and run:
 

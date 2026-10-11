@@ -6,9 +6,9 @@
 плеер на ESP32-S3 принимает готовый поток по Wi-Fi и отдаёт его в ЦАП ES9038Q2M.
 Управление — с телефона, из браузера.
 
-> **Статус:** каждый день играет дома. Готовы сервер 0.5, прошивка плеера 0.6, корпус и схема.
+> **Статус:** каждый день играет дома. Готовы сервер 0.6 (с установщиком под Windows), прошивка плеера 0.6, корпус и схема.
 > Экрана нет нарочно: всё видно в телефоне, вместе с обложкой. Дальше — больше соединений, чтобы
-> слушать через мобильный интернет (в машине), и установщик под Windows.
+> слушать через мобильный интернет (в машине).
 
 <p>
   <img src="photos/player_case.jpg" width="49%" alt="Плеер в корпусе на музыкальном центре">
@@ -23,8 +23,10 @@
 
 1. **Сервер** на Linux-компьютере, где лежит музыка:
    `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /путь/к/музыке`
-   (Windows: [`s3hifi-windows-amd64.exe`](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), см. [server](server)).
-2. **Плеер**: залить `s3hifi-player-esp32s3-n16r8.bin` из [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest),
+   **Windows:** установщик `s3hifi-setup-<версия>.exe` из [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) — спросит папку с музыкой,
+   сервер запускается вместе с Windows и живёт значком в трее (правой кнопкой → «Выход»).
+2. **Плеер**: скачать из [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) архив `s3hifi-flash-windows.zip`, распаковать, подключить плату
+   по USB и запустить `flash.bat` — он спросит только номер COM-порта (Linux/Mac: `esptool`, см. [firmware](firmware)). Потом
    подключить телефон к Wi-Fi «S3 Hi-Fi Setup» и выбрать свою сеть. Сервер плеер найдёт сам.
 3. **Пульт**: открыть на телефоне `http://<сервер>:8097`.
 

@@ -90,15 +90,16 @@ radio works and the folders appear once the share is up.
 
 ### Windows
 
-No installer yet. Download `s3hifi-windows-amd64.exe` from
-[Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), put it in a folder and run:
+Run `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest). It asks for the install folder and the music
+folder, starts the server with Windows (`-tray`: no console window, an icon in the notification area with
+"Open remote", "Music folder", "Log" and "Exit"), and allows the program in the firewall for private
+networks. To change the music folder, run the installer again. Uninstall from "Apps"; settings, queue and
+covers stay in `%USERPROFILE%\.s3hifi`, the log is `%USERPROFILE%\.s3hifi\s3hifi.log`.
 
-```
-s3hifi-windows-amd64.exe -music "D:\Music"
-```
+Without installing: `s3hifi-windows-amd64.exe -music "D:\Music"` in a console (add `-tray` for the icon).
 
-Allow it in the Windows firewall when asked (private networks). For DTS, APE and other extra formats put
-`ffmpeg.exe` and `ffprobe.exe` next to it (any LGPL build). Windows has been tested less than Linux.
+For DTS, APE and other extra formats put `ffmpeg.exe` and `ffprobe.exe` next to the server (any LGPL build).
+The installer is built with NSIS from [`installer/s3hifi.nsi`](../installer/s3hifi.nsi).
 
 ### Build from source
 

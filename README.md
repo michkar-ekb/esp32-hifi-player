@@ -8,7 +8,7 @@ to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
 > **Status:** in daily use at home. Server 0.5, player firmware 0.6, case and wiring are done.
 > No display on purpose: everything is on the phone, cover art included. Next: more connections
-> for listening over mobile internet (in a car), and a Windows installer.
+> for listening over mobile internet (in a car).
 
 <p>
   <img src="photos/player_case.jpg" width="49%" alt="Player in its case on the stereo">
@@ -23,8 +23,10 @@ The bench build: in the case on the stereo, and inside.
 
 1. **Server** on a Linux PC that holds the music:
    `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music`
-   (Windows: [`s3hifi-windows-amd64.exe`](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), see [server](server)).
-2. **Player**: flash `s3hifi-player-esp32s3-n16r8.bin` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest),
+   **Windows:** the installer `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) asks for the music folder;
+   the server starts with Windows and lives as a tray icon (right click → Exit).
+2. **Player**: download `s3hifi-flash-windows.zip` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack, connect the board by USB
+   and run `flash.bat` — it only asks for the COM port (Linux/Mac: `esptool`, see [firmware](firmware)). Then
    connect a phone to the "S3 Hi-Fi Setup" Wi-Fi and pick your network. The player finds the server by itself.
 3. **Remote**: open `http://<server>:8097` on the phone.
 

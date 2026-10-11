@@ -23,6 +23,7 @@ func main() {
 	sacdInfo := flag.String("sacd-info", "", "print the track list of a SACD .iso and exit (diagnostics)")
 	showVersion := flag.Bool("version", false, "print the version and exit")
 	onlineArt := flag.Bool("online-covers", true, "look up missing album covers and radio song pictures on the internet (iTunes)")
+	tray := flag.Bool("tray", false, "Windows: run without a console, with an icon in the notification area (log goes to <data>/s3hifi.log)")
 	flag.Parse()
 	if *showVersion {
 		fmt.Println("S3 Hi-Fi server", Version)
@@ -49,11 +50,28 @@ func main() {
 		log.Printf("music folder %q is not available yet: %v", root, err)
 	}
 	os.MkdirAll(*data, 0755)
+	if *tray {
+		logToFile(filepath.Join(*data, "s3hifi.log"))
+	}
 
 	lib := NewLibrary(root, *data)
 	lib.art = NewArtwork(*data, *onlineArt)
 	s := &Server{lib: lib, player: NewPlayer(lib, *data), radios: NewRadios(*data)}
 	go answerDiscovery(*listen)
 	log.Printf("S3 Hi-Fi server %s: music %s, remote http://<this-pc>%s", Version, root, *listen)
+	if *tray {
+		runTray(*listen, root, *data, s.Routes())
+		return
+	}
 	log.Fatal(http.ListenAndServe(*listen, s.Routes()))
+}
+
+// logToFile sends the log to a file (kept small: started anew when it grows past 5 MB).
+func logToFile(path string) {
+	if st, err := os.Stat(path); err == nil && st.Size() > 5<<20 {
+		os.Rename(path, path+".old")
+	}
+	if f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644); err == nil {
+		log.SetOutput(f)
+	}
 }
