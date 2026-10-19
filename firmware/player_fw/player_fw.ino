@@ -1,4 +1,4 @@
-// S3 Hi-Fi player firmware v0.6 — thin client of the S3 Hi-Fi server.
+// S3 Hi-Fi player firmware v0.7 — thin client of the S3 Hi-Fi server, and a USB DAC for a PC.
 // The server decodes everything to PCM; the player keeps a ~10 s buffer in PSRAM and
 // clocks it out over I2S as 32-bit samples (what the ES9038Q2M board expects).
 //
@@ -7,7 +7,11 @@
 //   i2s task    (core 1): ring buffer -> volume -> I2S; pause and volume act immediately
 //
 // A new epoch (new track, seek, stop) means: drop the buffer and reconnect.
-// Build: esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M (core 2.0.17)
+//
+// USB DAC (usb_audio.cpp): the second USB-C port is a USB speaker. When the PC opens the stream and there
+// is sound in it, the PC takes over: the network pauses (the server is told so). ▶ in the remote takes the
+// player back; 5 s of silence, a closed stream or a pulled cable gives it back. The network does not resume by itself.
+// Build: esp32:esp32:esp32s3:PSRAM=opi,FlashSize=16M,USBMode=default (core 3.3.8 - see usb_audio.cpp)
 #include <WiFi.h>
 #include <driver/i2s.h>
 #include <math.h>
@@ -16,7 +20,9 @@
 #include <WebServer.h>
 #include <DNSServer.h>
 #include <WiFiUdp.h>
+#include <Update.h>
 #include "lane.h"
+#include "usb_audio.h"
 
 // ---------- settings ----------
 // Wi-Fi and the server are set up from a phone: with no saved network (or if it is lost for a minute)
@@ -69,6 +75,10 @@ volatile uint64_t played = 0;           // frames played since the last flush
 volatile uint32_t outRate = 44100;       // format being played now
 volatile uint8_t outBits = 16;
 volatile bool srcIdle = true;           // stream task has no connection (nothing more coming)
+volatile bool usbOwner = false;         // the PC plays through us now
+volatile bool usbYield = false;         // ▶ in the remote won over the PC: ignore it until it goes quiet
+volatile bool pauseReq = false;         // tell the server to pause (the PC took over)
+uint32_t clkRate = 44100;               // rate the I2S clock runs at
 
 // ---------- I2S ----------
 void i2sInit() {
@@ -92,12 +102,52 @@ void i2sInit() {
   i2s_set_pin(I2S_NUM_0, &pins);
 }
 
+void setClk(uint32_t r) {
+  if (r == clkRate) return;
+  i2s_set_clk(I2S_NUM_0, r, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO);
+  clkRate = r;
+}
+
 float volumeGain(int v) {               // 100 = 0 dB, 0.4 dB per step, 0 = mute
   if (v <= 0) return 0;
   return powf(10.0f, -(100 - v) * 0.4f / 20.0f);
 }
 
 const uint32_t PREBUFFER_MS = 2000;
+const uint32_t USB_QUIET_MS = 5000;
+
+// Who plays: the PC over USB or the network.
+void usbTick() {
+  bool live = usbStreaming && usbConnected();
+  bool quiet = millis() - usbSoundMs > USB_QUIET_MS;
+  if (usbOwner && (!live || quiet)) usbOwner = false;
+  if (usbYield && (!live || quiet)) usbYield = false;
+  if (!usbOwner && !usbYield && live && !quiet) {
+    usbOwner = true;
+    if (playState == 'p') pauseReq = true;
+  }
+}
+
+// One block of the PC's sound. Keeps ~25 ms buffered; the feedback endpoint holds it there.
+void usbOut(int32_t *out, int N) {
+  static bool pre = true;
+  setClk(usbRate);
+  uint32_t av = usbAvail(), tgt = usbTargetFrames();
+  if (av > tgt * 4) { usbSkip(av - tgt); av = tgt; usbDropped++; }   // the PC ran far ahead: catch up
+  if (pre && av >= tgt) pre = false;
+  size_t w;
+  if (pre || av == 0) {
+    pre = true;
+    memset(out, 0, N * 8);
+    i2s_write(I2S_NUM_0, out, N * 8, &w, portMAX_DELAY);
+    return;
+  }
+  uint32_t n = av < (uint32_t)N ? av : N;
+  usbRead(out, n);
+  float g = usbGain;
+  if (g != 1.0f) for (uint32_t i = 0; i < n * 2; i++) out[i] = (int32_t)(out[i] * g);
+  i2s_write(I2S_NUM_0, out, n * 8, &w, portMAX_DELAY);
+}
 
 void i2sTask(void *) {
   const int N = 256;
@@ -105,6 +155,12 @@ void i2sTask(void *) {
   static uint8_t raw[N * 6];
   bool prebuffer = true;
   for (;;) {
+    usbTick();
+    if (usbOwner) {
+      if (flushReq) { rd = wr; markTail = markHead; played = 0; prebuffer = true; flushReq = false; }
+      usbOut(out, N);
+      continue;
+    }
     if (flushReq) {
       rd = wr;
       markTail = markHead;
@@ -116,11 +172,9 @@ void i2sTask(void *) {
       uint32_t r = marks[markTail].rate;
       outBits = marks[markTail].bits;
       markTail = (markTail + 1) % MARKS;
-      if (r != outRate) {
-        i2s_set_clk(I2S_NUM_0, r, I2S_BITS_PER_SAMPLE_32BIT, I2S_CHANNEL_STEREO);
-        outRate = r;
-      }
+      outRate = r;
     }
+    setClk(outRate);                    // also back from the PC's rate
     uint32_t fsz = outBits / 8 * 2;
     uint64_t avail = wr - rd;
     // after a new track, seek or underrun: gather PREBUFFER_MS of sound before starting (short tracks: what there is)
@@ -303,6 +357,19 @@ void pollTask(void *) {
     vTaskDelay(pdMS_TO_TICKS(250));
     static int fails = 0;
     if (WiFi.status() != WL_CONNECTED || !serverKnown) continue;
+    if (pauseReq) {                      // the PC took over: pause the network so nothing is skipped
+      pauseReq = false;
+      WiFiClient pc;
+      if (pc.connect(serverIp, serverPort, 1000)) {
+        const char *b = "{\"cmd\":\"pause\"}";
+        pc.printf("POST /api/cmd HTTP/1.0\r\nHost: %s\r\nContent-Type: application/json\r\nContent-Length: %d\r\n\r\n%s",
+                  serverIp, strlen(b), b);
+        uint32_t t0 = millis();
+        while (millis() - t0 < 1000 && pc.connected()) { while (pc.available()) pc.read(); vTaskDelay(1); }
+        pc.stop();
+        Serial.println("USB: the PC took over, network paused");
+      }
+    }
     WiFiClient c;
     if (!c.connect(serverIp, serverPort, 1000)) {
       if (++fails >= 12 && cfgServer.isEmpty()) serverKnown = false;   // server moved? look for it again
@@ -315,8 +382,8 @@ void pollTask(void *) {
     uint32_t now = millis(), bytes = rxBytes;
     uint32_t kbps = lastMs && now > lastMs ? (uint32_t)((uint64_t)(bytes - lastBytes) * 8 / (now - lastMs)) : 0;
     lastBytes = bytes; lastMs = now;
-    c.printf("GET /esp/poll?epoch=%u&played=%llu&buf=%u&rssi=%d&kbps=%u%s HTTP/1.0\r\nHost: %s\r\n\r\n",
-             streamEpoch, (unsigned long long)played, bufMs, WiFi.RSSI(), kbps, rs ? "&resync=1" : "", serverIp);
+    c.printf("GET /esp/poll?epoch=%u&played=%llu&buf=%u&rssi=%d&kbps=%u&usb=%d%s HTTP/1.0\r\nHost: %s\r\n\r\n",
+             streamEpoch, (unsigned long long)played, bufMs, WiFi.RSSI(), kbps, usbOwner ? 1 : 0, rs ? "&resync=1" : "", serverIp);
     if (rs) resyncReq = false;
     String resp;
     uint32_t t0 = millis();
@@ -331,7 +398,13 @@ void pollTask(void *) {
     char st[8] = {0};
     if (sscanf(resp.c_str() + body + 4, "%u %7s %u", &e, st, &v) == 3) {
       volumePct = v;
-      playState = !strcmp(st, "play") ? 'p' : !strcmp(st, "pause") ? 'z' : 's';
+      char ns = !strcmp(st, "play") ? 'p' : !strcmp(st, "pause") ? 'z' : 's';
+      if (usbOwner && ns == 'p' && playState != 'p') {   // ▶ in the remote: the network takes the player back
+        usbOwner = false;
+        usbYield = true;
+        Serial.println("USB: ▶ in the remote, back to the network");
+      }
+      playState = ns;
       serverEpoch = e;
     }
   }
@@ -425,6 +498,9 @@ void pageRoot() {
   } else {
     h += "<p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>";
   }
+  h += "<p>USB-ЦАП: " + String(usbOwner ? "играет компьютер, " + String(usbRate) + " Гц / " + usbBits + " бит"
+                               : usbConnected() ? (usbStreaming ? "компьютер подключён, звука нет" : "компьютер подключён")
+                               : "не подключён") + "</p>";
   h += "<form method=post action=/save><label for=ssid>Сеть Wi-Fi</label><select id=ssid name=ssid>";
   if (netOptions.isEmpty() && !cfgSsid.isEmpty()) h += "<option value=\"" + htmlEsc(cfgSsid) + "\" selected>" + htmlEsc(cfgSsid) + "</option>";
   h += netOptions;
@@ -488,6 +564,22 @@ void startWeb() {
     delay(100);
     scanNetworks();
   });
+  web.on("/usb", HTTP_GET, [] {
+    web.send(200, "text/plain; charset=utf-8", usbDiag());
+    if (web.hasArg("replug")) usbReplug();
+  });
+  // new firmware over Wi-Fi: curl -F "f=@player_fw.ino.bin" http://<player>/update
+  web.on("/update", HTTP_POST, [] {
+    bool ok = !Update.hasError();
+    web.send(200, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+    delay(500);
+    if (ok) ESP.restart();
+  }, [] {
+    HTTPUpload &up = web.upload();
+    if (up.status == UPLOAD_FILE_START) Update.begin(UPDATE_SIZE_UNKNOWN);
+    else if (up.status == UPLOAD_FILE_WRITE) Update.write(up.buf, up.currentSize);
+    else if (up.status == UPLOAD_FILE_END) Update.end(true);
+  });
   web.onNotFound([] {
     if (!portalOn) { web.send(404, "text/plain", "not found"); return; }
     web.sendHeader("Location", String("http://") + WiFi.softAPIP().toString() + "/");
@@ -508,6 +600,7 @@ void stopPortal() {
 void setup() {
   Serial.begin(115200);
   pinMode(0, INPUT_PULLUP);                           // BOOT button: hold 5 s to erase Wi-Fi settings
+  usbAudioBegin();                                    // first: the PC can play while Wi-Fi is still connecting
   // as much PSRAM as we can spare, leaving room for Wi-Fi and TCP buffers
   size_t big = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
   ringBytes = (uint32_t)min((size_t)(7u << 20), big > (768u << 10) ? big - (768u << 10) : 0) / 12 * 12;
@@ -568,8 +661,9 @@ void loop() {
   } else bootDown = 0;
   if (millis() - t > 2000) {
     t = millis();
-    Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d | server %s\n", streamEpoch, playState, volumePct,
-                  outRate ? (double)(wr - rd) / ((double)outRate * (outBits / 8 * 2)) : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-");
+    Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d | server %s | USB %s %u/%u buf %u lost %u\n", streamEpoch, playState, volumePct,
+                  outRate ? (double)(wr - rd) / ((double)outRate * (outBits / 8 * 2)) : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-",
+                  usbOwner ? "PLAYS" : usbYield ? "yield" : usbStreaming ? "open" : usbConnected() ? "idle" : "-", usbRate, usbBits, usbLevel(), usbDropped);
   }
   delay(portalOn ? 2 : 20);
 }

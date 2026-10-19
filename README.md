@@ -6,7 +6,8 @@ A network Hi-Fi player for your own music library (FLAC, WAV, MP3, DSD) and inte
 the player, built on an ESP32-S3, receives a ready-to-play stream over Wi-Fi and feeds it
 to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
-> **Status:** in daily use at home. Server 0.5, player firmware 0.6, case and wiring are done.
+> **Status:** in daily use at home. Server 0.6 (with a Windows installer), player firmware 0.7
+> (the player is now also a USB DAC for a PC), case and wiring are done.
 > No display on purpose: everything is on the phone, cover art included. Next: more connections
 > for listening over mobile internet (in a car).
 
@@ -19,15 +20,39 @@ The bench build: in the case on the stereo, and inside.
 
 ![Block diagram](hardware/schematic.svg)
 
+## New in 0.7: the player is also a USB DAC for your PC
+
+Plug the player into a computer with a USB cable and it becomes an ordinary sound card called
+**"S3 Hi-Fi"**. No driver needed: Windows 10/11, Linux and macOS support it out of the box (USB Audio Class 2).
+
+> ⚠️ **The board has two USB-C ports, and they are different.** Flash through the **COM** (UART) port.
+> Sound from the PC goes through the **USB** port (the ESP32-S3's native USB). **After flashing, move the
+> cable to the other port — USB**, or the PC will not see the sound card.
+
+- **Up to 24 bit / 96 kHz:** 16 and 24 bit, 44.1 / 48 / 88.2 / 96 kHz. USB Full Speed allows no more.
+- **Asynchronous:** the player's clock sets the pace and the PC follows it (feedback endpoint),
+  so the two clocks never drift apart and there are no clicks.
+- **Network and USB work at the same time.** When the PC starts playing (and the stream has sound in it),
+  network playback pauses and the player's settings page shows "USB-ЦАП: играет компьютер". ▶ in the
+  remote takes the player back to the network. 5 s of silence, a closed stream or a pulled cable releases
+  USB; the network does not resume by itself — press ▶.
+- **Volume** is the Windows slider. For the best sound keep it at 100 % and use the amplifier's knob.
+- **To stop Windows resampling everything to 48 kHz**, pick **WASAPI (Exclusive)** output to "S3 Hi-Fi"
+  in your player (AIMP: Settings → Playback → Device). The rate then follows each file. Otherwise Windows
+  sends the format set in "Speaker properties → Advanced".
+- USB diagnostics, if you are curious: `http://<player address>/usb`.
+
 ## Quick start
 
 1. **Server** on a Linux PC that holds the music:
    `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music`
    **Windows:** the installer `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), see
    [Server on Windows](#server-on-windows) below.
-2. **Player**: download `s3hifi-flash-windows.zip` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack, connect the board by USB
-   and run `flash.bat` — it only asks for the COM port (Linux/Mac: `esptool`, see [firmware](firmware)). Then
+2. **Player**: download `s3hifi-flash-windows.zip` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack, connect the board
+   **to the COM port** and run `flash.bat` — it only asks for the COM port number (Linux/Mac: `esptool`, see [firmware](firmware)). Then
    connect a phone to the "S3 Hi-Fi Setup" Wi-Fi and pick your network. The player finds the server by itself.
+   **For sound from the PC, move the cable to the other port — USB.** The cable is needed once: from 0.7 on,
+   new versions are installed over Wi-Fi (see [firmware](firmware)).
 3. **Remote**: open `http://<server>:8097` on the phone.
 
 ### Server on Windows
@@ -102,7 +127,7 @@ or a marker on a 3D printer.
 
 - [`server/`](server) — streaming server in Go with the built-in web remote: folders, queue, radio.
   One binary for **Windows and Linux**.
-- [`firmware/`](firmware) — player firmware for the ESP32-S3 (Arduino core 2.0.17).
+- [`firmware/`](firmware) — player firmware for the ESP32-S3 (Arduino core 3.3.8): network player and USB DAC.
 
 The ES9038Q2M board needs **32-bit I2S samples**; with 16-bit slots it plays noise.
 DSD is converted to PCM 24 bit / 88.2 kHz on the server: the board's I2S header cannot carry native DSD.
