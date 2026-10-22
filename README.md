@@ -7,7 +7,7 @@ the player, built on an ESP32-S3, receives a ready-to-play stream over Wi-Fi and
 to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
 > **Status:** in daily use at home. Server 0.8 (with a Windows installer), player firmware 0.8
-> (the player is also a USB DAC for a PC; the interface is in English and Russian), case and wiring are done.
+> (the player is also a USB DAC for a PC), case and wiring are done.
 > No display on purpose: everything is on the phone, cover art included. Next: more connections
 > for listening over mobile internet (in a car).
 
@@ -54,8 +54,6 @@ Plug the player into a computer with a USB cable and it becomes an ordinary soun
    **For sound from the PC, move the cable to the other port — USB.** The cable is needed once: from 0.7 on,
    new versions are installed over Wi-Fi (see [firmware](firmware)).
 3. **Remote**: open `http://<server>:8097` on the phone.
-   The remote, the player's setup page and the flashing script speak English or Russian, following the browser or Windows
-   language; `?lang=en` or `?lang=ru` after the remote's address switches it by hand.
 
 ### Server on Windows
 
