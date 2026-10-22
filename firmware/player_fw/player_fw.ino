@@ -488,32 +488,55 @@ select,input{width:100%;box-sizing:border-box;height:46px;border-radius:10px;bor
 button{margin-top:20px;width:100%;height:50px;border:0;border-radius:10px;background:#d4a95a;color:#1a1408;font:600 17px system-ui}
 small{color:#8f8d88}</style></head><body>)";
 
-void pageRoot() {
+// Page language: Russian for Russian browsers, English for everyone else; ?lang=en / ?lang=ru on the page overrides it.
+bool pageRu() {
+  if (web.hasArg("lang")) return web.arg("lang").startsWith("ru");
+  String l = web.header("Accept-Language");
+  l.toLowerCase();
+  return l.startsWith("ru");
+}
+
+String pageHead(bool ru) {
   String h = FPSTR(PAGE_HEAD);
+  if (!ru) h.replace("lang=\"ru\"", "lang=\"en\"");
+  return h;
+}
+
+void pageRoot() {
+  bool ru = pageRu();
+  auto T = [ru](const char *r, const char *e) { return String(ru ? r : e); };
+  String h = pageHead(ru);
   bool home = WiFi.status() == WL_CONNECTED;          // opened at the player's address in the home network
-  h += "<h1>S3 Hi-Fi — настройка</h1>";
+  h += T("<h1>S3 Hi-Fi — настройка</h1>", "<h1>S3 Hi-Fi — setup</h1>");
   if (home) {
-    h += "<p>Плеер в сети «" + htmlEsc(cfgSsid) + "», адрес " + WiFi.localIP().toString() + ", сигнал " + WiFi.RSSI() + " dBm.<br>Сервер: " +
-         (serverKnown ? String(serverIp) + ":" + serverPort : String("ищу…")) + (cfgServer.isEmpty() ? " (найден сам)" : " (задан вручную)") + "</p>";
+    h += T("<p>Плеер в сети «", "<p>The player is on «") + htmlEsc(cfgSsid) + T("», адрес ", "», address ") + WiFi.localIP().toString() +
+         T(", сигнал ", ", signal ") + WiFi.RSSI() + T(" dBm.<br>Сервер: ", " dBm.<br>Server: ") +
+         (serverKnown ? String(serverIp) + ":" + serverPort : T("ищу…", "searching…")) +
+         (cfgServer.isEmpty() ? T(" (найден сам)", " (found automatically)") : T(" (задан вручную)", " (set manually)")) + "</p>";
   } else {
-    h += "<p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>";
+    h += T("<p>Выберите домашнюю сеть Wi-Fi. Сервер плеер найдёт сам.</p>", "<p>Choose your home Wi-Fi network. The player finds the server by itself.</p>");
   }
-  h += "<p>USB-ЦАП: " + String(usbOwner ? "играет компьютер, " + String(usbRate) + " Гц / " + usbBits + " бит"
-                               : usbConnected() ? (usbStreaming ? "компьютер подключён, звука нет" : "компьютер подключён")
-                               : "не подключён") + "</p>";
-  h += "<form method=post action=/save><label for=ssid>Сеть Wi-Fi</label><select id=ssid name=ssid>";
+  h += T("<p>USB-ЦАП: ", "<p>USB DAC: ") + (usbOwner ? T("играет компьютер, ", "the computer is playing, ") + String(usbRate) + T(" Гц / ", " Hz / ") + usbBits + T(" бит", " bit")
+                               : usbConnected() ? (usbStreaming ? T("компьютер подключён, звука нет", "computer connected, no sound") : T("компьютер подключён", "computer connected"))
+                               : T("не подключён", "not connected")) + "</p>";
+  String q = web.hasArg("lang") ? (ru ? "?lang=ru" : "?lang=en") : "";
+  h += "<form method=post action=/save" + q + "><label for=ssid>" + T("Сеть Wi-Fi", "Wi-Fi network") + "</label><select id=ssid name=ssid>";
   if (netOptions.isEmpty() && !cfgSsid.isEmpty()) h += "<option value=\"" + htmlEsc(cfgSsid) + "\" selected>" + htmlEsc(cfgSsid) + "</option>";
   h += netOptions;
-  h += "<option value=\"\">другая сеть…</option></select>";
-  h += "<p style=\"margin:8px 0 0\"><small><a style=\"color:#d4a95a\" href=/rescan>Обновить список</a> — "
-       "телефон на пару секунд отключится от точки, потом вернётся</small></p>";
-  h += "<label for=other>Имя сети, если её нет в списке</label><input id=other name=other autocomplete=off>";
-  h += "<label for=pass>Пароль</label><input id=pass name=pass type=password autocomplete=off" +
-       String(cfgPass.isEmpty() ? "" : " placeholder=\"не менять\"") + ">";
-  h += "<label for=server>Адрес сервера <small>(можно не заполнять)</small></label><input id=server name=server value=\"" + htmlEsc(cfgServer) + "\" placeholder=\"найти автоматически\">";
-  h += "<p style=\"margin:8px 0 0\"><small>Пусто — искать сервер в домашней сети. Для сервера в интернете: адрес или адрес:порт.</small></p>";
-  h += "<button>Сохранить и подключиться</button></form>";
-  h += "<p style=\"margin-top:24px\"><small>Плеер " + WiFi.macAddress() + ". Чтобы стереть настройки, держите кнопку BOOT 5 секунд.</small></p></body></html>";
+  h += "<option value=\"\">" + T("другая сеть…", "another network…") + "</option></select>";
+  h += "<p style=\"margin:8px 0 0\"><small><a style=\"color:#d4a95a\" href=/rescan" + q + ">" + T("Обновить список</a> — "
+       "телефон на пару секунд отключится от точки, потом вернётся", "Refresh the list</a> — "
+       "the phone drops off the access point for a couple of seconds, then comes back") + "</small></p>";
+  h += "<label for=other>" + T("Имя сети, если её нет в списке", "Network name, if it is not in the list") + "</label><input id=other name=other autocomplete=off>";
+  h += "<label for=pass>" + T("Пароль", "Password") + "</label><input id=pass name=pass type=password autocomplete=off" +
+       (cfgPass.isEmpty() ? String() : " placeholder=\"" + T("не менять", "keep the current one") + "\"") + ">";
+  h += "<label for=server>" + T("Адрес сервера <small>(можно не заполнять)</small>", "Server address <small>(optional)</small>") +
+       "</label><input id=server name=server value=\"" + htmlEsc(cfgServer) + "\" placeholder=\"" + T("найти автоматически", "find automatically") + "\">";
+  h += "<p style=\"margin:8px 0 0\"><small>" + T("Пусто — искать сервер в домашней сети. Для сервера в интернете: адрес или адрес:порт.",
+       "Empty — look for the server in the home network. For a server on the internet: address or address:port.") + "</small></p>";
+  h += "<button>" + T("Сохранить и подключиться", "Save and connect") + "</button></form>";
+  h += "<p style=\"margin-top:24px\"><small>" + T("Плеер ", "Player ") + WiFi.macAddress() +
+       T(". Чтобы стереть настройки, держите кнопку BOOT 5 секунд.", ". To erase the settings, hold the BOOT button for 5 seconds.") + "</small></p></body></html>";
   web.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -531,11 +554,15 @@ void pageSave() {
   String sv = web.arg("server"); sv.trim();
   prefs.putString("server", sv);
   prefs.end();
-  String h = FPSTR(PAGE_HEAD);
-  h += "<h1>Сохранено</h1><p>Плеер перезагружается и подключается к сети «" + htmlEsc(ss) + "». "
-       "Если пароль неверный, через минуту снова появится сеть «S3 Hi-Fi Setup».</p>";
+  bool ru = pageRu();
+  auto T = [ru](const char *r, const char *e) { return String(ru ? r : e); };
+  String h = pageHead(ru);
+  h += T("<h1>Сохранено</h1><p>Плеер перезагружается и подключается к сети «", "<h1>Saved</h1><p>The player restarts and connects to «") + htmlEsc(ss) +
+       T("». Если пароль неверный, через минуту снова появится сеть «S3 Hi-Fi Setup».</p>",
+         "». If the password is wrong, the «S3 Hi-Fi Setup» network appears again in a minute.</p>");
   if (WiFi.status() == WL_CONNECTED)
-    h += "<p>Через полминуты страница снова откроется по адресу <a style=\"color:#d4a95a\" href=/>" + WiFi.localIP().toString() + "</a>.</p>";
+    h += T("<p>Через полминуты страница снова откроется по адресу <a style=\"color:#d4a95a\" href=/>",
+           "<p>In half a minute the page opens again at <a style=\"color:#d4a95a\" href=/>") + WiFi.localIP().toString() + "</a>.</p>";
   h += "</body></html>";
   web.send(200, "text/html; charset=utf-8", h);
   delay(1500);
@@ -556,10 +583,12 @@ void startPortal() {
 
 // The settings page: on the setup access point, and at the player's own address in the home network.
 void startWeb() {
+  const char *headers[] = {"Accept-Language"};       // for the page language
+  web.collectHeaders(headers, 1);
   web.on("/", HTTP_GET, pageRoot);
   web.on("/save", HTTP_POST, pageSave);
   web.on("/rescan", HTTP_GET, [] {
-    web.sendHeader("Location", "/");
+    web.sendHeader("Location", web.hasArg("lang") ? (pageRu() ? "/?lang=ru" : "/?lang=en") : "/");
     web.send(302);
     delay(100);
     scanNetworks();

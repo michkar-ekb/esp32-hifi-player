@@ -5,7 +5,7 @@
 > ⚠️ **Two USB-C ports, two jobs.** Flash through the **COM** (UART) port. Listen from a PC through the
 > **USB** port. After flashing, **move the cable to the USB port** — otherwise the PC sees no sound card.
 
-`player_fw/` — the player, version 0.7: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
+`player_fw/` — the player, version 0.8: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
 [server](../server), keeps up to ~40 s of CD audio (~12 s of 24/96) in PSRAM, stored as it came (16 or 24 bit) and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
@@ -71,7 +71,7 @@ curl -F "f=@s3hifi-player-ota.bin" http://<player address>/update
 ```
 
 The player answers `{"ok":true}` and restarts. Its address is on the player's setup page (the remote links
-to it as "настройки плеера") or in your router. Versions before 0.7 have no `/update`: flash 0.7 by cable once.
+to it as "player settings" / "настройки плеера") or in your router. Versions before 0.7 have no `/update`: flash 0.7 by cable once.
 
 ## First start
 
