@@ -5,7 +5,7 @@
 > ⚠️ **Two USB-C ports, two jobs.** Flash through the **COM** (UART) port. Listen from a PC through the
 > **USB** port. After flashing, **move the cable to the USB port** — otherwise the PC sees no sound card.
 
-`player_fw/` — the player, version 0.8: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
+`player_fw/` — the player, version 0.9: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
 [server](../server), keeps up to ~40 s of CD audio (~12 s of 24/96) in PSRAM, stored as it came (16 or 24 bit) and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
@@ -42,7 +42,7 @@ The ESP32-S3's native USB port is a **USB Audio Class 2 speaker**: no drivers on
 > **Use the COM (UART) port for flashing.** When it is done, move the cable to the **USB** port to listen from the PC.
 >
 > Flashing the full image by cable **resets the Wi-Fi settings**: set the player up again through
-> "S3 Hi-Fi Setup" (see below). You only need the cable once — from 0.7 on, updates go over Wi-Fi.
+> "S3 Hi-Fi Setup" (see below). You only need the cable once — after that, updates go over Wi-Fi.
 
 **Windows, the easy way:** download `s3hifi-flash-windows.zip` from
 [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack it, connect the board
@@ -60,18 +60,24 @@ esptool.py --chip esp32s3 write_flash 0x0 s3hifi-player-esp32s3-n16r8.bin
 (`pip install esptool`.) The image is built
 for ESP32-S3 N16R8 (16 MB flash, 8 MB octal PSRAM).
 
-## Update over Wi-Fi (from 0.7 on)
+## Update over Wi-Fi
 
-Firmware 0.7 and later can take a new version over the network, no cable, settings kept. Download
-`s3hifi-player-ota.bin` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest) and send it
-to the player (`curl` is built into Windows 10/11, Linux and macOS):
+Download `s3hifi-player-ota.bin` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest),
+open the player's settings page (the remote links to it as "player settings", or find the player's address in your
+router), choose the file under **Firmware update** and press **Update**. The page shows the progress, the player
+restarts in about 15 seconds, the settings are kept.
+
+An update password can be set on the same page (optional; without it anyone in your home network can update).
+Forgot it — flash by cable with `flash.bat`, the settings are reset.
+
+From a console (`curl` is built into Windows 10/11, Linux and macOS):
 
 ```
-curl -F "f=@s3hifi-player-ota.bin" http://<player address>/update
+curl -F "f=@s3hifi-player-ota.bin" "http://<player address>/update?pw=<password, if set>"
 ```
 
-The player answers `{"ok":true}` and restarts. Its address is on the player's setup page (the remote links
-to it as "player settings" / "настройки плеера") or in your router. Versions before 0.7 have no `/update`: flash 0.7 by cable once.
+The page is there from 0.9 on; 0.7 and 0.8 take the update only with `curl`. Versions before 0.7 have no
+`/update`: flash by cable once.
 
 ## First start
 

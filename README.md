@@ -6,7 +6,7 @@ A network Hi-Fi player for your own music library (FLAC, WAV, MP3, DSD) and inte
 the player, built on an ESP32-S3, receives a ready-to-play stream over Wi-Fi and feeds it
 to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
-> **Status:** in daily use at home. Server 0.8 (with a Windows installer), player firmware 0.8
+> **Status:** in daily use at home. Server 0.9 (with a Windows installer), player firmware 0.9
 > (the player is also a USB DAC for a PC), case and wiring are done.
 > No display on purpose: everything is on the phone, cover art included. Next: more connections
 > for listening over mobile internet (in a car).
@@ -46,13 +46,14 @@ Plug the player into a computer with a USB cable and it becomes an ordinary soun
 
 1. **Server** on a Linux PC that holds the music:
    `curl -fsSL https://raw.githubusercontent.com/michkar-ekb/esp32-hifi-player/main/install.sh | sudo sh -s -- /path/to/music`
+   (it offers to install ffmpeg, say yes — see below)
    **Windows:** the installer `s3hifi-setup-<version>.exe` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), see
    [Server on Windows](#server-on-windows) below.
 2. **Player**: download `s3hifi-flash-windows.zip` from [Releases](https://github.com/michkar-ekb/esp32-hifi-player/releases/latest), unpack, connect the board
    **to the COM port** and run `flash.bat` — it only asks for the COM port number (Linux/Mac: `esptool`, see [firmware](firmware)). Then
    connect a phone to the "S3 Hi-Fi Setup" Wi-Fi and pick your network. The player finds the server by itself.
-   **For sound from the PC, move the cable to the other port — USB.** The cable is needed once: from 0.7 on,
-   new versions are installed over Wi-Fi (see [firmware](firmware)).
+   **For sound from the PC, move the cable to the other port — USB.** The cable is needed once: new versions
+   are installed over Wi-Fi from the player's settings page (see [firmware](firmware)).
 3. **Remote**: open `http://<server>:8097` on the phone.
 
 ### Server on Windows
@@ -64,6 +65,7 @@ Plug the player into a computer with a USB cable and it becomes an ordinary soun
    `SHA256SUMS` next to the release. The same window may appear for `flash.bat`.
 3. The installer puts the server into Program Files, adds it to startup and allows it in the firewall
    for private networks. If an antivirus blocks the startup entry, the installer says so.
+   It also offers to download **ffmpeg** (ticked by default, about 80 MB) — leave the tick, see below.
 4. **On the first start the server asks for the music folder.** Any folder works: on this PC, a mapped
    network drive (e.g. `M:`) or `\\computer\share` — the path can be typed into the dialog. A folder on a
    mapped drive is remembered as its network path, so the music is found after a reboot even before
@@ -72,7 +74,10 @@ Plug the player into a computer with a USB cable and it becomes an ordinary soun
    "Open remote", "Music: …" (open the folder), "Choose music folder…", "Log", "Exit".
 6. Uninstall from Settings → Apps. Settings and the chosen folder stay in `%USERPROFILE%\.s3hifi`.
 
-For DTS, APE, WavPack and ALAC put `ffmpeg.exe` and `ffprobe.exe` into the program folder (any LGPL build).
+**ffmpeg** is needed for Hi-Res files above 96 kHz (24/192, 24/176.4): the server converts them to 96 / 88.2 kHz,
+otherwise the player's Wi-Fi cannot keep up and the sound breaks up. It also plays DTS, APE, WavPack, ALAC,
+M4A and OGG. Both installers offer it; by hand: `ffmpeg.exe` and `ffprobe.exe` into the program folder (any LGPL
+build), on Linux the `ffmpeg` package. FLAC, WAV, MP3 and DSD up to 96 kHz play without it.
 
 ## How it works
 
@@ -86,13 +91,14 @@ For DTS, APE, WavPack and ALAC put `ffmpeg.exe` and `ffprobe.exe` into the progr
   into an amplifier or powered speakers.
 
 Quality ceiling is 24-bit / 96 kHz: the stream is 4.6 Mbit/s, well within what Wi-Fi delivers.
+Files above 96 kHz are converted by the server (with ffmpeg) to 96 / 88.2 kHz.
 
 ## Parts
 
 | Block | Part | Notes |
 |---|---|---|
 | Player | ESP32-S3 DevKitC-1, **N16R8** | PSRAM is required for the buffer |
-| DAC | ES9038Q2M board (Rod Rain Audio) | I2S input: GND, BCLK, FSCLK, DATA; RCA output |
+| DAC | ES9038Q2M board (Rod Rain Audio) | I2S input: GND, BCLK, FSCLK, DATA; RCA output. **Needs its own oscillator on the board** — the player sends no MCLK |
 | Power | 12 V / 2 A adapter + DC-DC step-down module 12 → 5 V | 12 V goes to the DAC, 5 V to the ESP32-S3 |
 | Terminal board | ESP32-S3 terminal board (in this repository) | sockets for the devkit + 6 pads for wires |
 
@@ -111,6 +117,10 @@ Quality ceiling is 24-bit / 96 kHz: the stream is 4.6 Mbit/s, well within what W
 
 Power is split as a **star right at the DAC input jack**: one pair of wires goes to the DAC,
 the other to the DC-DC module. The ESP32 current never flows through the DAC's traces.
+
+**Keep the I2S wires short** (up to 15–20 cm) and **do not forget GND_A → DAC GND**: without this ground
+the sound crackles and drops out. For longer wires put 22–33 Ω resistors in series into BCLK, LRCK and DATA,
+right at the ESP32.
 
 ## ESP32-S3 terminal board
 

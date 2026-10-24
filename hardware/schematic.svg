@@ -69,7 +69,7 @@
 <text class="t" x="346" y="328">ESP32-S3</text>
 <text x="346" y="348">DevKitC-1 · N16R8</text>
 <text class="s" x="346" y="368">on the terminal board</text>
-<text class="s" x="346" y="392">3–5 s buffer in PSRAM,</text>
+<text class="s" x="346" y="392">~10 s buffer in PSRAM,</text>
 <text class="s" x="346" y="408">it clocks the I2S itself</text>
 <text x="346" y="438" font-size="12">devkit pins:</text>
 <text class="s" x="346" y="456">5V     ← 5V</text>

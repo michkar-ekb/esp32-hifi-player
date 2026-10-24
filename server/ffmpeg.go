@@ -29,6 +29,7 @@ var ffmpegExt = map[string]bool{
 var (
 	ffOnce                sync.Once
 	ffmpegBin, ffprobeBin string
+	ffSoxr                bool // the build has the SoX resampler (minimal builds, e.g. Fedora's ffmpeg-free, may not)
 )
 
 func findFF() {
@@ -53,6 +54,10 @@ func findFF() {
 			return ""
 		}
 		ffmpegBin, ffprobeBin = find("ffmpeg"), find("ffprobe")
+		if ffmpegBin != "" {
+			out, _ := hiddenCmd(ffmpegBin, "-hide_banner", "-buildconf").Output()
+			ffSoxr = strings.Contains(string(out), "libsoxr")
+		}
 	})
 }
 
@@ -174,8 +179,12 @@ func (s *ffmpegSource) start(pos float64) error {
 	}
 	args = append(args, input...)
 	args = append(args, "-map", "0:a:0", "-vn", "-ac", "2")
-	if s.fmt.Rate != s.srcRate { // high-quality downsampling (SoX resampler)
-		args = append(args, "-af", "aresample=resampler=soxr:precision=28", "-ar", strconv.Itoa(s.fmt.Rate))
+	if s.fmt.Rate != s.srcRate { // high-quality downsampling: SoX resampler, or ffmpeg's own with a long filter
+		af := "aresample=resampler=soxr:precision=28"
+		if !ffSoxr {
+			af = "aresample=filter_size=128:phase_shift=10:cutoff=0.97"
+		}
+		args = append(args, "-af", af, "-ar", strconv.Itoa(s.fmt.Rate))
 	}
 	args = append(args, "-f", sf, "-")
 	cmd := hiddenCmd(ffmpegBin, args...)

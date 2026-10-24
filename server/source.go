@@ -469,6 +469,7 @@ func (s *mp3Source) Close() error { return s.f.Close() }
 
 type radioSource struct {
 	resp *http.Response
+	body *idleBody
 	d    *mp3.Decoder
 	fmt  Format
 	meta *icyReader
@@ -496,7 +497,8 @@ func openRadio(url string, onTitle func(string)) (Source, error) {
 		resp.Body.Close()
 		return nil, fmt.Errorf("формат %s пока не поддерживается, нужна станция в MP3", ct)
 	}
-	var body io.Reader = bufio.NewReaderSize(resp.Body, 64<<10)
+	idle := newIdleBody(resp.Body, radioIdle)
+	var body io.Reader = bufio.NewReaderSize(idle, 64<<10)
 	ir := &icyReader{r: body, onTitle: onTitle}
 	if mi, _ := strconv.Atoi(resp.Header.Get("icy-metaint")); mi > 0 {
 		ir.metaint = mi
@@ -510,8 +512,33 @@ func openRadio(url string, onTitle func(string)) (Source, error) {
 	if n := resp.Header.Get("icy-name"); n != "" && onTitle != nil {
 		onTitle("")
 	}
-	return &radioSource{resp: resp, d: d, fmt: Format{Rate: d.SampleRate(), Bits: 16, Channels: 2}, meta: ir}, nil
+	return &radioSource{resp: resp, body: idle, d: d, fmt: Format{Rate: d.SampleRate(), Bits: 16, Channels: 2}, meta: ir}, nil
 }
+
+// radioIdle: a station that keeps the connection open but sends nothing for this long is treated as gone,
+// so playback does not hang on it.
+const radioIdle = 15 * time.Second
+
+// idleBody closes the stream if no data arrives for d; the blocked Read then returns an error.
+type idleBody struct {
+	rc io.ReadCloser
+	t  *time.Timer
+	d  time.Duration
+}
+
+func newIdleBody(rc io.ReadCloser, d time.Duration) *idleBody {
+	return &idleBody{rc: rc, d: d, t: time.AfterFunc(d, func() { rc.Close() })}
+}
+
+func (b *idleBody) Read(p []byte) (int, error) {
+	n, err := b.rc.Read(p)
+	if n > 0 {
+		b.t.Reset(b.d)
+	}
+	return n, err
+}
+
+func (b *idleBody) Close() error { b.t.Stop(); return b.rc.Close() }
 
 func (s *radioSource) Format() Format    { return s.fmt }
 func (s *radioSource) Duration() float64 { return 0 }
@@ -520,7 +547,7 @@ func (s *radioSource) Read(p []byte) (int, error) {
 	return n / 4 * 4, err
 }
 func (s *radioSource) Seek(float64) error { return ErrNoSeek }
-func (s *radioSource) Close() error       { return s.resp.Body.Close() }
+func (s *radioSource) Close() error       { return s.body.Close() }
 
 // icyReader strips SHOUTcast metadata blocks and reports StreamTitle.
 type icyReader struct {

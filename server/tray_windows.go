@@ -30,6 +30,19 @@ var (
 	choosing atomic.Bool // a folder dialog is open
 )
 
+// trayRu: the menu and messages follow the Windows display language (Russian, or English for any other).
+var trayRu = func() bool {
+	lang, _, _ := syscall.NewLazyDLL("kernel32.dll").NewProc("GetUserDefaultUILanguage").Call()
+	return lang&0x3ff == 0x19 // LANG_RUSSIAN
+}()
+
+func tr(ru, en string) string {
+	if trayRu {
+		return ru
+	}
+	return en
+}
+
 // runTray runs the server with an icon in the notification area. Left or right click opens the menu:
 // open the remote, the music folder, choose another music folder, the log, exit. A second copy is
 // not started: if the port is taken, the user gets a message and the remote of the running copy opens.
@@ -38,7 +51,7 @@ func runTray(listen string, lib *Library, data string, h http.Handler, askFolder
 	ln, err := net.Listen("tcp", listen)
 	if err != nil {
 		log.Printf("cannot listen on %s: %v", listen, err)
-		messageBox("S3 Hi-Fi", "Сервер уже запущен или порт "+listen+" занят.\n\n"+err.Error())
+		messageBox("S3 Hi-Fi", tr("Сервер уже запущен или порт "+listen+" занят.", "The server is already running or port "+listen+" is taken.")+"\n\n"+err.Error())
 		openURL(remoteURL(listen))
 		os.Exit(1)
 	}
@@ -50,28 +63,30 @@ func runTray(listen string, lib *Library, data string, h http.Handler, askFolder
 		systray.SetIcon(trayIcon)
 		systray.SetTitle("S3 Hi-Fi")
 
-		mRemote := systray.AddMenuItem("Открыть пульт", "Пульт в браузере")
-		mMusic := systray.AddMenuItem("", "Открыть папку с музыкой")
-		mChoose := systray.AddMenuItem("Выбрать папку с музыкой…", `Любая папка: на этом компьютере, сетевой диск или \\компьютер\папка`)
-		mLog := systray.AddMenuItem("Журнал", "Файл журнала сервера")
+		mRemote := systray.AddMenuItem(tr("Открыть пульт", "Open the remote"), tr("Пульт в браузере", "The remote in the browser"))
+		mMusic := systray.AddMenuItem("", tr("Открыть папку с музыкой", "Open the music folder"))
+		mChoose := systray.AddMenuItem(tr("Выбрать папку с музыкой…", "Choose the music folder…"),
+			tr(`Любая папка: на этом компьютере, сетевой диск или \\компьютер\папка`, `Any folder: on this computer, a network drive or \\computer\folder`))
+		mLog := systray.AddMenuItem(tr("Журнал", "Log"), tr("Файл журнала сервера", "The server log file"))
 		systray.AddSeparator()
-		mVer := systray.AddMenuItem("Версия "+Version, "")
+		mVer := systray.AddMenuItem(tr("Версия ", "Version ")+Version, "")
 		mVer.Disable()
-		mQuit := systray.AddMenuItem("Выход", "Остановить сервер")
+		mQuit := systray.AddMenuItem(tr("Выход", "Exit"), tr("Остановить сервер", "Stop the server"))
 
 		show := func() {
 			dir := lib.root()
-			mMusic.SetTitle("Музыка: " + shortPath(dir))
-			systray.SetTooltip("S3 Hi-Fi сервер " + Version + "\nМузыка: " + dir)
+			mMusic.SetTitle(tr("Музыка: ", "Music: ") + shortPath(dir))
+			systray.SetTooltip(tr("S3 Hi-Fi сервер ", "S3 Hi-Fi server ") + Version + tr("\nМузыка: ", "\nMusic: ") + dir)
 		}
 		choose := func(first bool) {
 			if !choosing.CompareAndSwap(false, true) {
 				return
 			}
 			defer choosing.Store(false)
-			title := "Выберите папку с музыкой"
+			title := tr("Выберите папку с музыкой", "Choose the music folder")
 			if first {
-				title = "S3 Hi-Fi: выберите папку с музыкой. Сетевой диск тоже подойдёт; путь можно вписать в строку ниже."
+				title = tr("S3 Hi-Fi: выберите папку с музыкой. Сетевой диск тоже подойдёт; путь можно вписать в строку ниже.",
+					"S3 Hi-Fi: choose the music folder. A network drive works too; the path can be typed in the line below.")
 			}
 			dir, ok := browseFolder(title, lib.root())
 			if !ok {

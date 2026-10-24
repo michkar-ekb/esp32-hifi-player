@@ -11,7 +11,7 @@ everything to PCM and streams it to the player. The web remote for the phone is 
   ffmpeg decodes it and downmixes to stereo.
 - **DSD** is converted to PCM 24 bit / 88.2 kHz with a linear-phase FIR (Kaiser window),
   because the DAC board's I2S header cannot carry native DSD.
-- **Bit-perfect** for PCM files: the stream is identical to what ffmpeg decodes;
+- **Bit-perfect** for PCM files at 100 % volume (below that the player scales the samples): the stream is identical to what ffmpeg decodes;
   seeking is sample-accurate and track changes are gapless.
 - **SACD disc images** (`.iso`): the stereo area is shown as songs with titles from the disc and played
   through the same DSD filter. DST-compressed discs are not supported yet.
@@ -20,7 +20,7 @@ everything to PCM and streams it to the player. The web remote for the phone is 
   rips) are read correctly, and a cue that says `album.wav` next to `album.ape` still finds the file.
 - **Fast seeking without seek tables:** FLAC and WavPack files are bisected for the right frame/block,
   so a song in the middle of an 80-minute album file starts in a second instead of reading the whole file.
-- **Above 96 kHz the server resamples** (SoX resampler via ffmpeg): 176.4/352.8 kHz → 88.2 kHz,
+- **Above 96 kHz the server resamples** (SoX resampler via ffmpeg, or ffmpeg's own if the build has no SoX): 176.4/352.8 kHz → 88.2 kHz,
   192/384 kHz → 96 kHz, still 24 bit. 24/192 would be 9.2 Mbit/s — more than the player gets over Wi-Fi.
 - **Network shares are fine:** files are read 32 MB ahead in the background, so a share that
   stalls for a few seconds is not heard.
@@ -52,8 +52,8 @@ service that starts with the system and runs as your user, and opens port **8097
 and the stream, UDP for player discovery) in firewalld or ufw. Without a folder argument it uses
 `~/Music`. Run the same command again to update.
 
-Optional: `sudo dnf install ffmpeg` / `sudo apt install ffmpeg` — for DTS, APE, M4A, OGG,
-WavPack and files above 96 kHz.
+The script offers to install ffmpeg (`FFMPEG=yes` / `FFMPEG=no` answers without asking) — it is needed
+for files above 96 kHz and for DTS, APE, M4A, OGG, WavPack. It also checks the download against `SHA256SUMS`.
 
 Then open `http://<this-computer>:8097` on the phone.
 
@@ -106,7 +106,8 @@ Uninstall from Settings → Apps; the data folder `%USERPROFILE%\.s3hifi` stays.
 
 Without installing: `s3hifi-windows-amd64.exe -music "D:\Music"` in a console (add `-tray` for the icon).
 
-For DTS, APE and other extra formats put `ffmpeg.exe` and `ffprobe.exe` next to the server (any LGPL build).
+The installer offers to download ffmpeg (an LGPL build, about 80 MB): needed for files above 96 kHz and for DTS,
+APE and other extra formats. Without the installer put `ffmpeg.exe` and `ffprobe.exe` next to the server.
 The installer is built with NSIS from [`installer/s3hifi.nsi`](../installer/s3hifi.nsi).
 
 ### Build from source

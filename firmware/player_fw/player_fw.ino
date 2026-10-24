@@ -1,4 +1,4 @@
-// S3 Hi-Fi player firmware v0.7 — thin client of the S3 Hi-Fi server, and a USB DAC for a PC.
+// S3 Hi-Fi player firmware v0.9 — thin client of the S3 Hi-Fi server, and a USB DAC for a PC.
 // The server decodes everything to PCM; the player keeps a ~10 s buffer in PSRAM and
 // clocks it out over I2S as 32-bit samples (what the ES9038Q2M board expects).
 //
@@ -30,7 +30,9 @@
 // the player broadcasts "S3HIFI?" on UDP 8097 and the server answers. Holding BOOT for 5 s erases the settings.
 const char *AP_NAME = "S3 Hi-Fi Setup";
 const uint16_t DISCOVERY_PORT = 8097;
+const char *FW_VERSION = "0.9";
 String cfgSsid, cfgPass, cfgServer;     // saved in NVS; cfgServer empty = find automatically
+String otaPw;                           // password for firmware updates over Wi-Fi; empty = none
 char serverIp[40] = "";
 volatile uint16_t serverPort = 8097;
 volatile bool serverKnown = false;
@@ -45,6 +47,13 @@ volatile bool serverKnown = false;
 uint8_t *ring;
 uint32_t ringBytes;                     // multiple of 12, so 4- and 6-byte frames tile it
 volatile uint64_t wr = 0, rd = 0;       // total bytes written / read since boot
+
+// wr is written by the stream task (core 0), rd by the I2S task (core 1). A 64-bit value is two 32-bit
+// words here, so the other core could read one half old and one half new (once in ~2 h of 24/96).
+// Writes and the other side's reads go through a short spinlock.
+portMUX_TYPE ringMux = portMUX_INITIALIZER_UNLOCKED;
+uint64_t ringGet(volatile uint64_t &v) { portENTER_CRITICAL(&ringMux); uint64_t x = v; portEXIT_CRITICAL(&ringMux); return x; }
+void ringSet(volatile uint64_t &v, uint64_t x) { portENTER_CRITICAL(&ringMux); v = x; portEXIT_CRITICAL(&ringMux); }
 
 struct FmtMark { uint64_t pos; uint32_t rate; uint8_t bits; };   // from byte `pos` on, data is rate/bits
 const int MARKS = 32;
@@ -157,14 +166,14 @@ void i2sTask(void *) {
   for (;;) {
     usbTick();
     if (usbOwner) {
-      if (flushReq) { rd = wr; markTail = markHead; played = 0; prebuffer = true; flushReq = false; }
+      if (flushReq) { ringSet(rd, ringGet(wr)); markTail = markHead; ringSet(played, 0); prebuffer = true; flushReq = false; }
       usbOut(out, N);
       continue;
     }
     if (flushReq) {
-      rd = wr;
+      ringSet(rd, ringGet(wr));
       markTail = markHead;
-      played = 0;
+      ringSet(played, 0);
       prebuffer = true;
       flushReq = false;
     }
@@ -176,7 +185,7 @@ void i2sTask(void *) {
     }
     setClk(outRate);                    // also back from the PC's rate
     uint32_t fsz = outBits / 8 * 2;
-    uint64_t avail = wr - rd;
+    uint64_t avail = ringGet(wr) - rd;
     // after a new track, seek or underrun: gather PREBUFFER_MS of sound before starting (short tracks: what there is)
     if (prebuffer && (avail >= (uint64_t)outRate * fsz * PREBUFFER_MS / 1000 || (srcIdle && avail > 0))) prebuffer = false;
     if (playState == 'p' && !prebuffer && avail >= fsz) {
@@ -195,9 +204,9 @@ void i2sTask(void *) {
       }
       size_t w;
       i2s_write(I2S_NUM_0, out, n * 8, &w, portMAX_DELAY);
-      rd += n * fsz;
-      played += n;
-      if (wr == rd && !srcIdle) prebuffer = true;  // underrun: refill a little before continuing
+      ringSet(rd, rd + n * fsz);
+      ringSet(played, played + n);
+      if (ringGet(wr) == rd && !srcIdle) prebuffer = true;  // underrun: refill a little before continuing
     } else {
       memset(out, 0, sizeof(out));                // keep the clock running: no pops
       size_t w;
@@ -308,13 +317,13 @@ bool readChunkInto(Lane &c, uint32_t epoch, uint32_t seq) {
     data = st;
     n = len * 2;
   }
-  while (ringBytes - (wr - rd) < n) {              // ring full: wait for the I2S side
+  while (ringBytes - (wr - ringGet(rd)) < n) {              // ring full: wait for the I2S side
     if (serverEpoch != epoch) return false;
     vTaskDelay(pdMS_TO_TICKS(5));
   }
   pushFormat(rate, bits);
   ringWrite(data, n);
-  wr += n;
+  ringSet(wr, wr + n);
   return true;
 }
 
@@ -376,14 +385,14 @@ void pollTask(void *) {
       continue;
     }
     fails = 0;
-    uint32_t bufMs = outRate ? (uint32_t)((wr - rd) * 1000 / ((uint64_t)outRate * (outBits / 8 * 2))) : 0;
+    uint32_t bufMs = outRate ? (uint32_t)((ringGet(wr) - ringGet(rd)) * 1000 / ((uint64_t)outRate * (outBits / 8 * 2))) : 0;
     bool rs = resyncReq;
     static uint32_t lastBytes = 0, lastMs = 0;
     uint32_t now = millis(), bytes = rxBytes;
     uint32_t kbps = lastMs && now > lastMs ? (uint32_t)((uint64_t)(bytes - lastBytes) * 8 / (now - lastMs)) : 0;
     lastBytes = bytes; lastMs = now;
     c.printf("GET /esp/poll?epoch=%u&played=%llu&buf=%u&rssi=%d&kbps=%u&usb=%d%s HTTP/1.0\r\nHost: %s\r\n\r\n",
-             streamEpoch, (unsigned long long)played, bufMs, WiFi.RSSI(), kbps, usbOwner ? 1 : 0, rs ? "&resync=1" : "", serverIp);
+             streamEpoch, (unsigned long long)ringGet(played), bufMs, WiFi.RSSI(), kbps, usbOwner ? 1 : 0, rs ? "&resync=1" : "", serverIp);
     if (rs) resyncReq = false;
     String resp;
     uint32_t t0 = millis();
@@ -535,6 +544,37 @@ void pageRoot() {
   h += "<p style=\"margin:8px 0 0\"><small>" + T("Пусто — искать сервер в домашней сети. Для сервера в интернете: адрес или адрес:порт.",
        "Empty — look for the server in the home network. For a server on the internet: address or address:port.") + "</small></p>";
   h += "<button>" + T("Сохранить и подключиться", "Save and connect") + "</button></form>";
+  if (home) {
+    h += "<h1 style=\"margin-top:32px\">" + T("Обновление прошивки", "Firmware update") + "</h1><p>" +
+         T("Сейчас версия ", "Now version ") + FW_VERSION + T(". Файл <b>s3hifi-player-ota.bin</b> из релиза на GitHub. Настройки сохранятся.",
+         ". The file <b>s3hifi-player-ota.bin</b> from a release on GitHub. The settings are kept.") + "</p>";
+    h += "<input id=fw type=file accept=.bin style=\"padding-top:10px\">";
+    if (!otaPw.isEmpty()) h += "<label for=fwpw>" + T("Пароль на обновление", "Update password") + "</label><input id=fwpw type=password autocomplete=off>";
+    h += "<button type=button id=fwgo>" + T("Обновить", "Update") + "</button><p id=fwmsg style=\"margin-top:12px\"></p>";
+    h += "<details><summary><small>" + T("Пароль на обновление", "Update password") + (otaPw.isEmpty() ? T(" (не задан)", " (not set)") : T(" (задан)", " (set)")) +
+         "</small></summary><form method=post action=/otapw" + q + ">";
+    if (!otaPw.isEmpty()) h += "<label for=old>" + T("Текущий пароль", "Current password") + "</label><input id=old name=old type=password autocomplete=off>";
+    h += "<label for=new>" + T("Новый пароль <small>(пусто — без пароля)</small>", "New password <small>(empty — no password)</small>") +
+         "</label><input id=new name=new type=password autocomplete=off><button>" + T("Сохранить пароль", "Save the password") + "</button></form>"
+         "<p style=\"margin-top:8px\"><small>" + T("Забыли пароль — прошейте плеер кабелем (flash.bat), настройки сбросятся.",
+         "Forgot it — flash the player by cable (flash.bat); the settings are reset.") + "</small></p></details>";
+    h += "<script>const M={";
+    h += ru ? "pick:'Выберите файл прошивки.',bad:'Это не файл прошивки ESP32.',big:'Файл больше места под прошивку.',up:'Загрузка: ',"
+              "ok:'Готово. Плеер перезагружается, страница обновится сама…',pw:'Неверный пароль.',err:'Не получилось: ',net:'Нет связи с плеером.'"
+            : "pick:'Choose a firmware file.',bad:'This is not an ESP32 firmware file.',big:'The file is larger than the firmware space.',up:'Uploading: ',"
+              "ok:'Done. The player restarts, the page reloads by itself…',pw:'Wrong password.',err:'It did not work: ',net:'No connection to the player.'";
+    h += "},MAX=" + String(ESP.getFreeSketchSpace()) + R"JS(;
+const msg=t=>fwmsg.textContent=t;
+fwgo.onclick=async()=>{const f=fw.files[0];if(!f)return msg(M.pick);
+if(new Uint8Array(await f.slice(0,1).arrayBuffer())[0]!==0xE9)return msg(M.bad);if(f.size>MAX)return msg(M.big);
+const pw=window.fwpw?fwpw.value:'',fd=new FormData();fd.append('f',f);const x=new XMLHttpRequest();
+x.open('POST','/update'+(pw?'?pw='+encodeURIComponent(pw):''));fwgo.disabled=true;
+x.upload.onprogress=e=>e.lengthComputable&&msg(M.up+Math.round(e.loaded*100/e.total)+'%');
+x.onload=()=>{let r={};try{r=JSON.parse(x.responseText)}catch(e){}
+if(r.ok){msg(M.ok);setTimeout(()=>location.reload(),15000)}else{fwgo.disabled=false;msg(x.status==403?M.pw:M.err+(r.err||x.status))}};
+x.onerror=()=>{fwgo.disabled=false;msg(M.net)};x.send(fd)};
+</script>)JS";
+  }
   h += "<p style=\"margin-top:24px\"><small>" + T("Плеер ", "Player ") + WiFi.macAddress() +
        T(". Чтобы стереть настройки, держите кнопку BOOT 5 секунд.", ". To erase the settings, hold the BOOT button for 5 seconds.") + "</small></p></body></html>";
   web.send(200, "text/html; charset=utf-8", h);
@@ -597,17 +637,38 @@ void startWeb() {
     web.send(200, "text/plain; charset=utf-8", usbDiag());
     if (web.hasArg("replug")) usbReplug();
   });
-  // new firmware over Wi-Fi: curl -F "f=@player_fw.ino.bin" http://<player>/update
+  // new firmware over Wi-Fi: the form on the page, or curl -F "f=@s3hifi-player-ota.bin" "http://<player>/update?pw=<password>"
+  // (Update itself checks that it is an ESP32 image and that it fits)
+  static bool otaDenied = false;
   web.on("/update", HTTP_POST, [] {
-    bool ok = !Update.hasError();
-    web.send(200, "application/json", ok ? "{\"ok\":true}" : "{\"ok\":false}");
+    if (otaDenied) { web.send(403, "application/json", "{\"ok\":false,\"err\":\"password\"}"); return; }
+    bool ok = !Update.hasError() && Update.isFinished();
+    web.send(200, "application/json", ok ? String("{\"ok\":true}") : "{\"ok\":false,\"err\":\"" + String(Update.errorString()) + "\"}");
     delay(500);
     if (ok) ESP.restart();
   }, [] {
     HTTPUpload &up = web.upload();
-    if (up.status == UPLOAD_FILE_START) Update.begin(UPDATE_SIZE_UNKNOWN);
+    if (up.status == UPLOAD_FILE_START) {
+      otaDenied = !otaPw.isEmpty() && web.arg("pw") != otaPw;
+      if (!otaDenied) Update.begin(UPDATE_SIZE_UNKNOWN);
+    } else if (otaDenied) return;
     else if (up.status == UPLOAD_FILE_WRITE) Update.write(up.buf, up.currentSize);
     else if (up.status == UPLOAD_FILE_END) Update.end(true);
+    else if (up.status == UPLOAD_FILE_ABORTED) Update.abort();
+  });
+  web.on("/otapw", HTTP_POST, [] {
+    bool ru = pageRu();
+    String q = web.hasArg("lang") ? (ru ? "?lang=ru" : "?lang=en") : "";
+    if (!otaPw.isEmpty() && web.arg("old") != otaPw) {
+      web.send(200, "text/html; charset=utf-8", pageHead(ru) + (ru ? "<h1>Неверный пароль</h1><p>Пароль на обновление не изменён.</p>"
+                                                                      : "<h1>Wrong password</h1><p>The update password is unchanged.</p>") +
+                                                "<p><a style=\"color:#d4a95a\" href=/" + q + ">" + (ru ? "Назад" : "Back") + "</a></p></body></html>");
+      return;
+    }
+    otaPw = web.arg("new");
+    Preferences prefs; prefs.begin("s3hifi", false); prefs.putString("otapw", otaPw); prefs.end();
+    web.sendHeader("Location", "/" + q);
+    web.send(302);
   });
   web.onNotFound([] {
     if (!portalOn) { web.send(404, "text/plain", "not found"); return; }
@@ -642,6 +703,7 @@ void setup() {
   cfgSsid = prefs.getString("ssid", "");
   cfgPass = prefs.getString("pass", "");
   cfgServer = prefs.getString("server", "");
+  otaPw = prefs.getString("otapw", "");
   prefs.end();
   WiFi.persistent(false);
   WiFi.setSleep(false);                               // power save adds latency and drops throughput
@@ -691,7 +753,7 @@ void loop() {
   if (millis() - t > 2000) {
     t = millis();
     Serial.printf("epoch %u %c vol %d | buf %.1f s @ %u Hz | played %llu | RSSI %d | server %s | USB %s %u/%u buf %u lost %u\n", streamEpoch, playState, volumePct,
-                  outRate ? (double)(wr - rd) / ((double)outRate * (outBits / 8 * 2)) : 0.0, outRate, (unsigned long long)played, WiFi.RSSI(), serverKnown ? serverIp : "-",
+                  outRate ? (double)(ringGet(wr) - ringGet(rd)) / ((double)outRate * (outBits / 8 * 2)) : 0.0, outRate, (unsigned long long)ringGet(played), WiFi.RSSI(), serverKnown ? serverIp : "-",
                   usbOwner ? "PLAYS" : usbYield ? "yield" : usbStreaming ? "open" : usbConnected() ? "idle" : "-", usbRate, usbBits, usbLevel(), usbDropped);
   }
   delay(portalOn ? 2 : 20);
