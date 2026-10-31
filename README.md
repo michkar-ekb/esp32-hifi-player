@@ -99,7 +99,7 @@ Files above 96 kHz are converted by the server (with ffmpeg) to 96 / 88.2 kHz.
 |---|---|---|
 | Player | ESP32-S3 DevKitC-1, **N16R8** | PSRAM is required for the buffer |
 | DAC | ES9038Q2M board (Rod Rain Audio) | I2S input: GND, BCLK, FSCLK, DATA; RCA output. **Needs its own oscillator on the board** — the player sends no MCLK |
-| Power | 12 V / 2 A adapter + DC-DC step-down module 12 → 5 V | 12 V goes to the DAC, 5 V to the ESP32-S3 |
+| Power | 12 V / 2 A adapter + DC-DC step-down module 12 → 5 V | 12 V goes to the DAC, 5 V to the ESP32-S3. See [hiss in headphones](#known-issue-hiss-in-headphones) |
 | Terminal board | ESP32-S3 terminal board (in this repository) | sockets for the devkit + 6 pads for wires |
 
 ## Wiring
@@ -132,6 +132,22 @@ or a marker on a 3D printer.
 
 - `hardware/pcb/terminal_board_gerber.zip` — Gerber files to order or etch the board
 - `hardware/pcb/terminal_board_bottom_marker.stl` — bottom layer for marker plotting (mirrored, 0.2 mm)
+
+## Known issue: hiss in headphones
+
+In headphones you may hear a hiss or crackle when a song starts and when the player connects; the volume on the
+remote does not change it. It is Wi-Fi interference: at those moments the ESP32-S3 sends data in bursts and draws
+current in spikes, and the switching DC-DC module together with the ground shared with the DAC lets that into the
+sound. Through an amplifier or a stereo system it is usually inaudible, in headphones it is clear.
+
+**Confirmed:** powering the ESP32-S3 separately — for example from a power bank over USB — removes the noise
+completely. Keep the ground between the ESP32 and the DAC (GND_A → GND) connected.
+
+**Work in progress:** I am moving the ESP32 supply from the DC-DC module to a linear 7805 regulator, the standard
+datasheet circuit (4 capacitors, a heatsink). My estimate is about an 80 % chance that this removes the noise.
+I will add the result here once it is tested.
+
+![ESP32-S3 supply from a 7805](hardware/power_7805.svg)
 
 ## Software
 

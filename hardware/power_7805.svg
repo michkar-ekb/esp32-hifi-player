@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="560" viewBox="0 0 1100 560">
+<rect width="1100" height="560" fill="#d9d9d9"/>
+<text x="24" y="40" font-size="24" fill="#111" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">S3 Hi-Fi — 5 V for the ESP32-S3 from a 7805 (instead of the DC-DC module)</text>
+<text x="24" y="68" font-size="17" fill="#333" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">Питание ESP32-S3 от кренки 7805 вместо DC-DC модуля — схема из даташита, 4 конденсатора</text>
+<text x="100" y="166" font-size="18" fill="#8b1a1a" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">+12 V</text>
+<text x="100" y="210" font-size="13" fill="#333" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">from the star point</text>
+<text x="100" y="227" font-size="13" fill="#333" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">at the DAC power jack</text>
+<line x1="100" y1="180" x2="470" y2="180" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="200" y1="180" x2="200" y2="250" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="180" y1="250" x2="220" y2="250" stroke="#111" stroke-width="4"/>
+<path d="M180,268 Q200,258 220,268" fill="none" stroke="#111" stroke-width="4"/>
+<text x="172" y="246" font-size="18" fill="#111" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">+</text>
+<line x1="200" y1="266" x2="200" y2="330" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="200" y1="330" x2="200" y2="342" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="184" y1="342" x2="216" y2="342" stroke="#111" stroke-width="3"/>
+<line x1="190" y1="348" x2="210" y2="348" stroke="#111" stroke-width="3"/>
+<line x1="196" y1="354" x2="204" y2="354" stroke="#111" stroke-width="3"/>
+<text x="228" y="250" font-size="16" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">C1</text>
+<text x="228" y="270" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">100 µF 25 V</text>
+<circle cx="200" cy="180" r="5" fill="#8b1a1a"/>
+<line x1="340" y1="180" x2="340" y2="250" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="320" y1="250" x2="360" y2="250" stroke="#111" stroke-width="4"/>
+<line x1="320" y1="262" x2="360" y2="262" stroke="#111" stroke-width="4"/>
+<line x1="340" y1="262" x2="340" y2="330" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="340" y1="330" x2="340" y2="342" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="324" y1="342" x2="356" y2="342" stroke="#111" stroke-width="3"/>
+<line x1="330" y1="348" x2="350" y2="348" stroke="#111" stroke-width="3"/>
+<line x1="336" y1="354" x2="344" y2="354" stroke="#111" stroke-width="3"/>
+<text x="368" y="250" font-size="16" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">C2</text>
+<text x="368" y="270" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">0.33 µF</text>
+<circle cx="340" cy="180" r="5" fill="#8b1a1a"/>
+<rect x="470" y="140" width="160" height="100" fill="#f2f2f2" stroke="#111" stroke-width="4"/>
+<text x="550" y="185" font-size="24" fill="#111" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">7805</text>
+<text x="550" y="208" font-size="13" fill="#333" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">L7805CV / КР142ЕН5А</text>
+<text x="486" y="185" font-size="14" fill="#1f3fbf" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">IN</text>
+<text x="614" y="185" font-size="14" fill="#1f3fbf" text-anchor="end" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">OUT</text>
+<text x="550" y="232" font-size="14" fill="#1f3fbf" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">GND</text>
+<line x1="550" y1="240" x2="550" y2="330" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="550" y1="330" x2="550" y2="342" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="534" y1="342" x2="566" y2="342" stroke="#111" stroke-width="3"/>
+<line x1="540" y1="348" x2="560" y2="348" stroke="#111" stroke-width="3"/>
+<line x1="546" y1="354" x2="554" y2="354" stroke="#111" stroke-width="3"/>
+<line x1="630" y1="180" x2="1000" y2="180" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="720" y1="180" x2="720" y2="250" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="700" y1="250" x2="740" y2="250" stroke="#111" stroke-width="4"/>
+<line x1="700" y1="262" x2="740" y2="262" stroke="#111" stroke-width="4"/>
+<line x1="720" y1="262" x2="720" y2="330" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="720" y1="330" x2="720" y2="342" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="704" y1="342" x2="736" y2="342" stroke="#111" stroke-width="3"/>
+<line x1="710" y1="348" x2="730" y2="348" stroke="#111" stroke-width="3"/>
+<line x1="716" y1="354" x2="724" y2="354" stroke="#111" stroke-width="3"/>
+<text x="748" y="250" font-size="16" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">C3</text>
+<text x="748" y="270" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">0.1 µF</text>
+<circle cx="720" cy="180" r="5" fill="#8b1a1a"/>
+<line x1="860" y1="180" x2="860" y2="250" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="840" y1="250" x2="880" y2="250" stroke="#111" stroke-width="4"/>
+<path d="M840,268 Q860,258 880,268" fill="none" stroke="#111" stroke-width="4"/>
+<text x="832" y="246" font-size="18" fill="#111" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">+</text>
+<line x1="860" y1="266" x2="860" y2="330" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="860" y1="330" x2="860" y2="342" stroke="#8b1a1a" stroke-width="2.5"/>
+<line x1="844" y1="342" x2="876" y2="342" stroke="#111" stroke-width="3"/>
+<line x1="850" y1="348" x2="870" y2="348" stroke="#111" stroke-width="3"/>
+<line x1="856" y1="354" x2="864" y2="354" stroke="#111" stroke-width="3"/>
+<text x="888" y="250" font-size="16" fill="#1f3fbf" text-anchor="start" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">C4</text>
+<text x="888" y="270" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">220 µF 10 V</text>
+<circle cx="860" cy="180" r="5" fill="#8b1a1a"/>
+<text x="1040" y="166" font-size="18" fill="#8b1a1a" text-anchor="middle" font-weight="bold" font-family="DejaVu Sans, Arial, sans-serif">+5 V</text>
+<text x="1040" y="210" font-size="13" fill="#333" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">to the 5V pad</text>
+<text x="1040" y="227" font-size="13" fill="#333" text-anchor="middle" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">(ESP32-S3)</text>
+<text x="24" y="440" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">• C2 and C3 (ceramic) — right at the 7805 legs. / Керамика C2, C3 — вплотную к выводам кренки.</text>
+<text x="24" y="466" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">• Heatsink ~2×3 cm: 12 V → 5 V at ~0.3 A is about 2 W of heat. / Радиатор ~2×3 см: ~2 Вт тепла.</text>
+<text x="24" y="492" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">• Optional: 470 µF + 0.1 µF right at the ESP32 5V/GND pins. / По желанию: 470 мкФ + 0,1 мкФ у самого ESP32.</text>
+<text x="24" y="518" font-size="15" fill="#111" text-anchor="start" font-weight="normal" font-family="DejaVu Sans, Arial, sans-serif">• GND of the 7805 goes to the same star point as the DAC. / Земля кренки — в ту же «звезду» у разъёма ЦАПа.</text>
+</svg>
