@@ -30,12 +30,15 @@
 // the player broadcasts "S3HIFI?" on UDP 8097 and the server answers. Holding BOOT for 5 s erases the settings.
 const char *AP_NAME = "S3 Hi-Fi Setup";
 const uint16_t DISCOVERY_PORT = 8097;
-const char *FW_VERSION = "0.9";
+const char *FW_VERSION = "0.9.1";
 String cfgSsid, cfgPass, cfgServer;     // saved in NVS; cfgServer empty = find automatically
 String otaPw;                           // password for firmware updates over Wi-Fi; empty = none
 char serverIp[40] = "";
 volatile uint16_t serverPort = 8097;
 volatile bool serverKnown = false;
+int txPw = 78;                          // Wi-Fi transmit power, 0.25 dBm steps (78 = 19.5 dBm, the maximum); setup page
+const int TXPW_MAX = 78;
+void applyTxPw() { WiFi.setTxPower((wifi_power_t)txPw); }
 
 #define I2S_BCLK 1
 #define I2S_LRCK 2
@@ -529,6 +532,15 @@ void pageRoot() {
                                : usbConnected() ? (usbStreaming ? T("компьютер подключён, звука нет", "computer connected, no sound") : T("компьютер подключён", "computer connected"))
                                : T("не подключён", "not connected")) + "</p>";
   String q = web.hasArg("lang") ? (ru ? "?lang=ru" : "?lang=en") : "";
+  if (home) {                                         // transmit power: less Wi-Fi hiss in the sound, if the link allows
+    h += "<form method=post action=/txpower" + q + "><label for=txpw>" + T("Мощность Wi-Fi", "Wi-Fi power") + " <small>(" + T("сигнал ", "signal ") +
+         WiFi.RSSI() + " dBm)</small></label><select id=txpw name=txpw onchange=\"this.form.submit()\">";
+    const int lv[] = {78, 68, 60, 52, 44, 34, 28, 20};
+    for (int v : lv) h += "<option value=" + String(v) + (v == txPw ? " selected>" : ">") + String(v / 4.0, v % 4 ? 1 : 0) + " dBm" +
+                          (v == TXPW_MAX ? T(" (максимум)", " (maximum)") : "") + "</option>";
+    h += "</select><p style=\"margin:8px 0 0\"><small>" + T("Меньше — тише Wi-Fi в звуке. Пропадёт сеть больше чем на 20 с — плеер сам вернёт максимум.",
+         "Lower — less Wi-Fi in the sound. If the network is lost for more than 20 s, the player goes back to the maximum by itself.") + "</small></p></form>";
+  }
   h += "<form method=post action=/save" + q + "><label for=ssid>" + T("Сеть Wi-Fi", "Wi-Fi network") + "</label><select id=ssid name=ssid>";
   if (netOptions.isEmpty() && !cfgSsid.isEmpty()) h += "<option value=\"" + htmlEsc(cfgSsid) + "\" selected>" + htmlEsc(cfgSsid) + "</option>";
   h += netOptions;
@@ -656,6 +668,16 @@ void startWeb() {
     else if (up.status == UPLOAD_FILE_END) Update.end(true);
     else if (up.status == UPLOAD_FILE_ABORTED) Update.abort();
   });
+  web.on("/txpower", HTTP_POST, [] {
+    int v = web.arg("txpw").toInt();
+    if (v >= 8 && v <= TXPW_MAX) {
+      txPw = v; applyTxPw();
+      Preferences prefs; prefs.begin("s3hifi", false); prefs.putInt("txpw", txPw); prefs.end();
+      Serial.printf("tx power %.2f dBm\n", txPw / 4.0);
+    }
+    web.sendHeader("Location", "/" + String(web.hasArg("lang") ? (pageRu() ? "?lang=ru" : "?lang=en") : ""));
+    web.send(302);
+  });
   web.on("/otapw", HTTP_POST, [] {
     bool ru = pageRu();
     String q = web.hasArg("lang") ? (ru ? "?lang=ru" : "?lang=en") : "";
@@ -704,6 +726,7 @@ void setup() {
   cfgPass = prefs.getString("pass", "");
   cfgServer = prefs.getString("server", "");
   otaPw = prefs.getString("otapw", "");
+  txPw = prefs.getInt("txpw", TXPW_MAX);
   prefs.end();
   WiFi.persistent(false);
   WiFi.setSleep(false);                               // power save adds latency and drops throughput
@@ -714,7 +737,7 @@ void setup() {
     WiFi.begin(cfgSsid.c_str(), cfgPass.c_str());
     Serial.printf("WiFi \"%s\"", cfgSsid.c_str());
     for (int i = 0; i < 60 && WiFi.status() != WL_CONNECTED; i++) { delay(500); Serial.print("."); }
-    if (WiFi.status() == WL_CONNECTED) Serial.printf(" OK, IP %s, RSSI %d dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI());
+    if (WiFi.status() == WL_CONNECTED) { applyTxPw(); Serial.printf(" OK, IP %s, RSSI %d dBm, tx %.2f dBm\n", WiFi.localIP().toString().c_str(), WiFi.RSSI(), txPw / 4.0); }
     else { Serial.println(" failed"); startPortal(); }
   }
   startWeb();
@@ -731,7 +754,7 @@ void loop() {
   web.handleClient();
   if (up) {
     lastOk = millis();
-    if (!okSince) okSince = millis();
+    if (!okSince) { okSince = millis(); applyTxPw(); }
     if (portalOn && !cfgSsid.isEmpty() && millis() - okSince > 3000) stopPortal();   // the saved network works again
   } else {
     okSince = 0;
@@ -739,6 +762,12 @@ void loop() {
     // retry the saved network, but not while a phone is on the setup page (retries make the AP hop channels)
     bool phoneOnSetup = portalOn && WiFi.softAPgetStationNum() > 0;
     if (!cfgSsid.isEmpty() && !phoneOnSetup && millis() - lastTry > 10000) { lastTry = millis(); WiFi.begin(cfgSsid.c_str(), cfgPass.c_str()); }
+    // lowered transmit power and the network is gone: back to full power, so the setup page stays reachable
+    if (txPw != TXPW_MAX && millis() - lastOk > 20000) {
+      txPw = TXPW_MAX; applyTxPw();
+      Preferences prefs; prefs.begin("s3hifi", false); prefs.putInt("txpw", txPw); prefs.end();
+      Serial.println("Wi-Fi lost with lowered power: back to 19.5 dBm");
+    }
     if (millis() - lastOk > 60000) startPortal();     // lost for a minute: let the user fix it from a phone
   }
   if (digitalRead(0) == LOW) {                        // BOOT held for 5 s: forget Wi-Fi and server

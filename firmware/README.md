@@ -5,7 +5,7 @@
 > ⚠️ **Two USB-C ports, two jobs.** Flash through the **COM** (UART) port. Listen from a PC through the
 > **USB** port. After flashing, **move the cable to the USB port** — otherwise the PC sees no sound card.
 
-`player_fw/` — the player, version 0.9: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
+`player_fw/` — the player, version 0.9.1: a network player and a USB DAC for a PC. Over the network it decodes nothing: it receives PCM from the
 [server](../server), keeps up to ~40 s of CD audio (~12 s of 24/96) in PSRAM, stored as it came (16 or 24 bit) and plays it out over I2S.
 
 - I2S pins: **BCLK = GPIO1, LRCK = GPIO2, DATA = GPIO42**, no MCLK.
@@ -91,6 +91,22 @@ on the internet. Holding **BOOT** for 5 seconds erases the settings.
 The same setup page also opens at the player's own address in the home network (the remote links to
 it as "настройки плеера"): it shows the network, signal, server and the USB DAC state, and lets you change them. A blank
 password keeps the saved one.
+
+## Wi-Fi power (from 0.9.1)
+
+The setup page in the home network has a **Wi-Fi power** list: from 19.5 dBm (the maximum, the default) down to 5 dBm.
+The choice applies at once and is kept after a restart.
+
+Why: the ESP32 transmits right next to the DAC, and at full power a quiet Wi-Fi hiss can get into the sound,
+easiest to hear in headphones at high volume. Most homes don't need 19.5 dBm: if the router is in the same or the
+next room, try 11–13 dBm. The author's player plays at 11 dBm with no hiss, both next to the router and in another
+room. Lower it step by step and watch the signal on the same page; if music starts to stop, go one step back up.
+
+If the player loses the network for more than 20 seconds with lowered power, it goes back to the maximum by itself,
+so the setup page stays reachable.
+
+Also keep the I2S wires away from the ESP32 antenna (the end of the board with the antenna, opposite the USB),
+see the wiring diagram.
 
 ## Build
 

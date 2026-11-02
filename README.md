@@ -6,7 +6,7 @@ A network Hi-Fi player for your own music library (FLAC, WAV, MP3, DSD) and inte
 the player, built on an ESP32-S3, receives a ready-to-play stream over Wi-Fi and feeds it
 to an ES9038Q2M DAC. You control it from your phone, in the browser.
 
-> **Status:** in daily use at home. Server 0.9 (with a Windows installer), player firmware 0.9
+> **Status:** in daily use at home. Server 0.9 (with a Windows installer), player firmware 0.9.1
 > (the player is also a USB DAC for a PC), case and wiring are done.
 > No display on purpose: everything is on the phone, cover art included. Next: more connections
 > for listening over mobile internet (in a car).
@@ -121,6 +121,10 @@ the other to the DC-DC module. The ESP32 current never flows through the DAC's t
 **Keep the I2S wires short** (up to 15–20 cm) and **do not forget GND_A → DAC GND**: without this ground
 the sound crackles and drops out. For longer wires put 22–33 Ω resistors in series into BCLK, LRCK and DATA,
 right at the ESP32.
+
+**Wi-Fi power.** Full ESP32 transmit power (19.5 dBm) is more than most homes need, and right next to the DAC
+it can add a quiet hiss to the sound. From firmware 0.9.1 it is set on the player's setup page; 11–13 dBm is
+usually enough. See [firmware/README.md](firmware/README.md#wi-fi-power-from-091).
 
 ## ESP32-S3 terminal board
 
