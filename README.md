@@ -99,21 +99,21 @@ Files above 96 kHz are converted by the server (with ffmpeg) to 96 / 88.2 kHz.
 |---|---|---|
 | Player | ESP32-S3 DevKitC-1, **N16R8** | PSRAM is required for the buffer |
 | DAC | ES9038Q2M board (Rod Rain Audio) | I2S input: GND, BCLK, FSCLK, DATA; RCA output. **Needs its own oscillator on the board** — the player sends no MCLK |
-| Power | 12 V / 2 A adapter + DC-DC step-down module 12 → 5 V | 12 V goes to the DAC, 5 V to the ESP32-S3. See [hiss in headphones](#known-issue-hiss-in-headphones) |
+| Power | 12 V / 2 A adapter + DC-DC step-down module 12 → 5 V | 12 V goes to the DAC, 5 V to the ESP32-S3 |
 | Terminal board | ESP32-S3 terminal board (in this repository) | sockets for the devkit + 6 pads for wires |
 
 ## Wiring
 
 ![Wiring diagram](hardware/wiring.svg)
 
-| ESP32-S3 | Terminal board pad | DAC |
+| ESP32-S3 (devkit pin) | Terminal board pad | Goes to |
 |---|---|---|
-| 5V | 5V | — (from the DC-DC module) |
-| GND | GND | — (from the DC-DC module) |
-| GPIO42 | DATA | DATA |
-| GPIO2 | LRCK | FSCLK |
-| GPIO1 | BCLK | BCLK |
-| GND | GND_A | GND |
+| 5V (left row, 21) | 5V — left side | DC-DC OUT+ |
+| GND (right row, 21) | GND — right side | DC-DC OUT− |
+| GND (right row, 1) | GND_A — right side | DAC GND |
+| GPIO1 | BCLK — right side | BCLK |
+| GPIO2 | LRCK — right side | FSCLK |
+| GPIO42 | DATA — right side | DATA |
 
 Power is split as a **star right at the DAC input jack**: one pair of wires goes to the DAC,
 the other to the DC-DC module. The ESP32 current never flows through the DAC's traces.
@@ -125,29 +125,14 @@ right at the ESP32.
 ## ESP32-S3 terminal board
 
 The devkit plugs into sockets, and every signal the player needs comes out to large pads
-for soldering wires. Single-sided, 48 × 69.65 mm, all traces on the bottom layer, made for toner transfer
+for soldering wires — **on the sides, away from the antenna**: GND_A, BCLK, LRCK, DATA and GND on the right, 5V on the left.
+Single-sided, 48 × 69.65 mm, M3 holes 41 × 62.65, all traces on the bottom layer, made for toner transfer
 or a marker on a 3D printer.
 
 <img src="hardware/pcb/terminal_board.png" width="360" alt="Terminal board layout">
 
 - `hardware/pcb/terminal_board_gerber.zip` — Gerber files to order or etch the board
 - `hardware/pcb/terminal_board_bottom_marker.stl` — bottom layer for marker plotting (mirrored, 0.2 mm)
-
-## Known issue: hiss in headphones
-
-In headphones you may hear a hiss or crackle when a song starts and when the player connects; the volume on the
-remote does not change it. It is Wi-Fi interference: at those moments the ESP32-S3 sends data in bursts and draws
-current in spikes, and the switching DC-DC module together with the ground shared with the DAC lets that into the
-sound. Through an amplifier or a stereo system it is usually inaudible, in headphones it is clear.
-
-**Confirmed:** powering the ESP32-S3 separately — for example from a power bank over USB — removes the noise
-completely. Keep the ground between the ESP32 and the DAC (GND_A → GND) connected.
-
-**Work in progress:** I am moving the ESP32 supply from the DC-DC module to a linear 7805 regulator, the standard
-datasheet circuit (4 capacitors, a heatsink). My estimate is about an 80 % chance that this removes the noise.
-I will add the result here once it is tested.
-
-![ESP32-S3 supply from a 7805](hardware/power_7805.svg)
 
 ## Software
 
